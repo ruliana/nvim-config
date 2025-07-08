@@ -23,6 +23,12 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
 
+-- Enable line numbers
+vim.opt.number = true
+
+-- Always show sign column for LSP messages
+vim.opt.signcolumn = "yes"
+
 -- Enable smart case search
 vim.opt.ignorecase = true
 vim.opt.smartcase = true

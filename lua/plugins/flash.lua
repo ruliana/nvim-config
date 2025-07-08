@@ -1,6 +1,6 @@
 return {
   "folke/flash.nvim",
-  dir = "/Users/ronie/code/nvim/flash.nvim", -- Use your local development version
+  -- dir = "/Users/ronie/code/nvim/flash.nvim", -- Use your local development version
   event = "VeryLazy",
   opts = {
     -- Your original labels as fallback (for backward compatibility)
@@ -18,10 +18,29 @@ return {
     highlight = {
       backdrop = true,
     },
+    
+    -- Enable search integration for n/N repeat
+    search = {
+      multi_window = true,
+      forward = true,
+      wrap = true,
+    },
+    
+    -- Enable search mode for / and ? integration with n/N repeat
+    modes = {
+      search = {
+        enabled = true,
+        highlight = { backdrop = false },
+        jump = { 
+          history = true, 
+          register = true, 
+          nohlsearch = true 
+        },
+      },
+    },
   },
   keys = {
-    { "s", mode = { "n", "x", "o" }, function() require("flash").jump() end, desc = "Flash" },
-    { "r", mode = { "n", "x", "o" }, function() require("flash").treesitter() end, desc = "Flash Treesitter" },
+    { "?", mode = { "n", "x", "o" }, function() require("flash").treesitter() end, desc = "Flash Treesitter" },
     { "<c-s>", mode = { "c" }, function() require("flash").toggle() end, desc = "Toggle Flash Search" },
   },
 }
