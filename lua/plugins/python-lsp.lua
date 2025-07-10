@@ -1,7 +1,7 @@
 return {
   {
     "neovim/nvim-lspconfig",
-    event = { "BufReadPre", "BufNewFile" },
+    ft = "python",
     dependencies = {
       "williamboman/mason.nvim",
       "williamboman/mason-lspconfig.nvim",
@@ -61,6 +61,7 @@ return {
       -- BasedPyright configuration
       lspconfig.basedpyright.setup({
         capabilities = capabilities,
+        filetypes = { "python" },
         settings = {
           basedpyright = {
             analysis = {
@@ -77,6 +78,7 @@ return {
       -- Ruff LSP configuration
       lspconfig.ruff.setup({
         capabilities = capabilities,
+        filetypes = { "python" },
         init_options = {
           settings = {
             logLevel = "error",

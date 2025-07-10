@@ -1,6 +1,7 @@
 return {
   {
     "mfussenegger/nvim-dap",
+    ft = "python",
     dependencies = {
       "mfussenegger/nvim-dap-python",
       "rcarriga/nvim-dap-ui",
@@ -73,6 +74,7 @@ return {
       end
     end,
     keys = {
+      { "<leader>d", group = "Debug" },
       { "<F5>", function() require("dap").continue() end, desc = "Debug Continue" },
       { "<F10>", function() require("dap").step_over() end, desc = "Debug Step Over" },
       { "<F11>", function() require("dap").step_into() end, desc = "Debug Step Into" },

@@ -17,6 +17,8 @@ return {
         { "<leader>m", group = "Markdown" },
         { "<leader>c", group = "Compile" },
         { "<leader>t", group = "Table" },
+        { "<leader>d", group = "Debug" },
+        { "<leader>f", group = "Find" },
       })
     end,
   },
