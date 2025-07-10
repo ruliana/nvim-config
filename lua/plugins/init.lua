@@ -1,7 +1,7 @@
 return {
   {
     "folke/which-key.nvim",
-    event = "VeryLazy",
+    event = { "BufReadPre", "BufNewFile" },
     opts = {},
     keys = {
       {
@@ -22,21 +22,21 @@ return {
   },
   {
     "echasnovski/mini.operators",
-    event = "VeryLazy",
+    event = { "BufReadPre", "BufNewFile" },
     config = function()
       require("mini.operators").setup()
     end,
   },
   {
     "echasnovski/mini.indentscope",
-    event = "VeryLazy",
+    event = { "BufReadPre", "BufNewFile" },
     config = function()
       require("mini.indentscope").setup()
     end,
   },
   {
     "lewis6991/spaceless.nvim",
-    event = "VeryLazy",
+    event = { "BufReadPre", "BufNewFile" },
     config = function()
       require("spaceless").setup()
     end,

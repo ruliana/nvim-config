@@ -2,7 +2,7 @@ return {
   {
     "echasnovski/mini.ai",
     version = false,
-    event = "VeryLazy",
+    event = { "BufReadPre", "BufNewFile" },
     config = function()
       local ai = require("mini.ai")
       
@@ -68,7 +68,7 @@ return {
   {
     "echasnovski/mini.surround",
     version = false,
-    event = "VeryLazy",
+    event = { "BufReadPre", "BufNewFile" },
     config = function()
       require("mini.surround").setup()
     end,

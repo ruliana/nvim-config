@@ -1,7 +1,7 @@
 return {
   "folke/flash.nvim",
   -- dir = "/Users/ronie/code/nvim/flash.nvim", -- Use your local development version
-  event = "VeryLazy",
+  event = { "BufReadPre", "BufNewFile" },
   opts = {
     -- Your original labels as fallback (for backward compatibility)
     labels = "soaeiultcpwvgfzq",
