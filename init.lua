@@ -33,6 +33,9 @@ vim.opt.signcolumn = "yes"
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
 
+-- Use very magic regular expressions by default
+vim.opt.magic = true
+
 -- Clear search highlighting with Escape
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { silent = true })
 
