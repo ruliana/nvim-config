@@ -2,6 +2,20 @@ return {
   "ibhagwan/fzf-lua",
   dependencies = { "nvim-tree/nvim-web-devicons" },
   event = "VeryLazy",
+  keys = {
+    { "<leader>f", group = "Find" },
+    { "<leader>ff", "<cmd>FzfLua files<cr>", desc = "Find Files" },
+    { "<leader>fg", "<cmd>FzfLua live_grep<cr>", desc = "Live Grep" },
+    { "<leader>fb", "<cmd>FzfLua buffers<cr>", desc = "Find Buffers" },
+    { "<leader>fh", "<cmd>FzfLua oldfiles<cr>", desc = "Recent Files" },
+    { "<leader>fc", "<cmd>FzfLua grep_cword<cr>", desc = "Find Word Under Cursor" },
+    { "<leader>fC", "<cmd>FzfLua grep_cWORD<cr>", desc = "Find WORD Under Cursor" },
+    { "<leader>fr", "<cmd>FzfLua resume<cr>", desc = "Resume Last Search" },
+    { "<leader>f:", "<cmd>FzfLua command_history<cr>", desc = "Command History" },
+    { "<leader>f/", "<cmd>FzfLua search_history<cr>", desc = "Search History" },
+    { "<leader>fs", "<cmd>FzfLua lsp_document_symbols<cr>", desc = "Document Symbols" },
+    { "<leader>fS", "<cmd>FzfLua lsp_workspace_symbols<cr>", desc = "Workspace Symbols" },
+  },
   opts = {
     winopts = {
       height = 0.85,

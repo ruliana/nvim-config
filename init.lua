@@ -49,5 +49,6 @@ require("lazy").setup({
 })
 
 -- Load configurations
+require("config.keybindings")
 require("config.markdown")
 require("config.python")
