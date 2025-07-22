@@ -1,5 +1,12 @@
 return {
   {
+    "echasnovski/mini.operators",
+    event = { "BufReadPre", "BufNewFile" },
+    config = function()
+      require("mini.operators").setup()
+    end,
+  },
+  {
     "echasnovski/mini.ai",
     version = false,
     event = { "BufReadPre", "BufNewFile" },
@@ -71,6 +78,13 @@ return {
     event = { "BufReadPre", "BufNewFile" },
     config = function()
       require("mini.surround").setup()
+    end,
+  },
+  {
+    "lewis6991/spaceless.nvim",
+    event = { "BufReadPre", "BufNewFile" },
+    config = function()
+      require("spaceless").setup()
     end,
   },
 }

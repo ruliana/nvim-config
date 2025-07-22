@@ -60,20 +60,21 @@ This is a Python-focused Neovim configuration built on Lazy.nvim with the follow
 ```
 init.lua                    # Bootstrap and plugin loading
 lua/config/
+  ├── keybindings.lua      # Global LSP and keybinding setup
   ├── python.lua           # Python-specific settings and keybindings
   └── markdown.lua         # Markdown file type settings
 lua/plugins/
-  ├── init.lua             # Core plugins (which-key, mini.operators, mini.indentscope, spaceless)
-  ├── completion.lua       # nvim-cmp configuration
-  ├── mason.lua            # LSP server management
+  ├── init.lua             # Core plugin (mini.operators)
+  ├── completion.lua       # nvim-cmp with LSP, snippets, buffer, and path sources
+  ├── mason.lua            # Mason LSP server and tool management
   ├── python-lsp.lua       # LSP configurations (BasedPyright + Ruff)
-  ├── python-dap.lua       # Debug adapter configuration
+  ├── python-dap.lua       # Debug adapter configuration (nvim-dap + debugpy)
   ├── uv-integration.lua   # UV package manager integration
-  ├── markdown.lua         # Markdown plugins and preview
-  ├── treesitter.lua       # TreeSitter configuration
-  ├── fzf-lua.lua          # FZF fuzzy finder
-  ├── flash.lua            # Enhanced motion and search
-  └── mini-ai.lua          # Text objects and surround operations
+  ├── markdown.lua         # Markdown plugins (render-markdown, preview, table-mode)
+  ├── treesitter.lua       # TreeSitter with textobjects support
+  ├── editing.lua          # Text editing plugins (mini.ai, mini.surround, spaceless)
+  ├── navigation.lua       # Navigation plugins (flash.nvim + fzf-lua)
+  └── ui.lua               # UI plugins (which-key, mini.indentscope)
 ```
 
 ## Python Development Workflow
@@ -83,6 +84,10 @@ lua/plugins/
 - `<leader>x*`: UV package management
 - `<leader>d*`: Debugging commands
 - `<leader>l*`: LSP actions
+- `<leader>f*`: Find/search commands (FZF-lua)
+- `<leader>m*`: Markdown commands
+- `<leader>c*`: Compile commands
+- `<leader>t*`: Table commands
 
 ### LSP Configuration
 - **BasedPyright**: Primary language server for type checking
@@ -92,17 +97,18 @@ lua/plugins/
 - **Diagnostic Display**: Uses floating windows instead of above-line virtual text for better readability
 
 ### Debugging Setup
-- Debugpy adapter configured with Mason-installed debugpy
+- Debugpy adapter configured with Mason-installed debugpy at `~/.local/share/nvim/mason/packages/debugpy/venv/bin/python`
 - UI automatically opens/closes with debug sessions
 - Virtual text shows variable values during debugging
-- F-keys mapped for step debugging
+- F-keys mapped for step debugging (F5=continue, F10=step_over, F11=step_into, F12=step_out)
 
 ## Navigation and Search
 
 ### FZF-lua Integration
 - Fuzzy finder with preview support
 - Custom keybindings for files, buffers, grep, and history
-- Configurable window size and positioning
+- Configurable window size and positioning (85% height, 80% width)
+- LSP symbol search support for documents and workspace
 
 ### Flash.nvim Motion
 - Enhanced f/F/t/T motions with custom directional labeling
@@ -129,3 +135,11 @@ lua/plugins/
 - Line numbers and sign column always visible
 - Smart case search enabled
 - Clear search highlighting with `<Esc>`
+- Diagnostic display uses floating windows on CursorHold (500ms delay)
+- Very magic regex mode enabled by default
+
+## Project-Specific Features
+
+- **Directory Change Detection**: Automatically restarts LSP and updates UV project context when changing directories
+- **pyproject.toml Detection**: Sets UV project context when pyproject.toml is found in current directory
+- **Mason Integration**: All LSP servers and tools managed through Mason for consistent installation paths
