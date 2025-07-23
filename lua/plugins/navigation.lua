@@ -50,6 +50,7 @@ return {
     dependencies = { "nvim-tree/nvim-web-devicons" },
     event = "VeryLazy",
     keys = {
+      { "<leader><space>", "<cmd>FzfLua commands<cr>", desc = "Find Commands" },
       { "<leader>ff", "<cmd>FzfLua files<cr>", desc = "Find Files" },
       { "<leader>fb", "<cmd>FzfLua buffers<cr>", desc = "Find Buffers" },
       { "<leader>fg", "<cmd>FzfLua live_grep<cr>", desc = "Find Grep" },

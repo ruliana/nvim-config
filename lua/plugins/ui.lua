@@ -19,6 +19,7 @@ return {
         { "<leader>t", group = "Table" },
         { "<leader>d", group = "Debug" },
         { "<leader>f", group = "Find" },
+        { "<leader>g", group = "Git" },
       })
     end,
   },
