@@ -17,8 +17,8 @@ return {
         { "<leader>m", group = "Markdown" },
         { "<leader>c", group = "Compile" },
         { "<leader>t", group = "Table" },
-        { "<leader>g", group = "Git" },
-        { "<leader>gt", function() require("agitator").git_time_machine() end, desc = "Git Time Travel" },
+        { "<leader>d", group = "Debug" },
+        { "<leader>f", group = "Find" },
       })
     end,
   },

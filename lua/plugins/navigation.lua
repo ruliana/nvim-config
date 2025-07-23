@@ -49,6 +49,20 @@ return {
     "ibhagwan/fzf-lua",
     dependencies = { "nvim-tree/nvim-web-devicons" },
     event = "VeryLazy",
+    keys = {
+      { "<leader>ff", "<cmd>FzfLua files<cr>", desc = "Find Files" },
+      { "<leader>fb", "<cmd>FzfLua buffers<cr>", desc = "Find Buffers" },
+      { "<leader>fg", "<cmd>FzfLua live_grep<cr>", desc = "Find Grep" },
+      { "<leader>fh", "<cmd>FzfLua oldfiles<cr>", desc = "Find History" },
+      { "<leader>fr", "<cmd>FzfLua resume<cr>", desc = "Find Resume" },
+      { "<leader>fw", "<cmd>FzfLua grep_cword<cr>", desc = "Find Word" },
+      { "<leader>fW", "<cmd>FzfLua grep_cWORD<cr>", desc = "Find WORD" },
+      { "<leader>fc", "<cmd>FzfLua grep_curbuf<cr>", desc = "Find Current Buffer" },
+      { "<leader>fC", "<cmd>FzfLua commands<cr>", desc = "Find Commands" },
+      { "<leader>fk", "<cmd>FzfLua keymaps<cr>", desc = "Find Keymaps" },
+      { "<leader>fs", "<cmd>FzfLua lsp_document_symbols<cr>", desc = "Find Symbols (Document)" },
+      { "<leader>fS", "<cmd>FzfLua lsp_workspace_symbols<cr>", desc = "Find Symbols (Workspace)" },
+    },
     opts = {
       winopts = {
         height = 0.85,
