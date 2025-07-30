@@ -11,6 +11,11 @@ local function setup_global_keymaps()
     { "<leader>lr", "<cmd>LspRestart<cr>", desc = "Restart LSP" },
     { "<leader>lf", function() vim.lsp.buf.format({ async = true }) end, desc = "Format" },
     { "<leader>ll", function() vim.diagnostic.open_float() end, desc = "Show Diagnostics" },
+    
+    -- Search and Replace
+    { "<leader>s", group = "Search" },
+    { "<leader>ss", ":%s/\\v", desc = "Search/Replace (very magic)", mode = "n" },
+    { "<leader>ss", ":s/\\v", desc = "Search/Replace (very magic)", mode = "v" },
   })
 end
 
