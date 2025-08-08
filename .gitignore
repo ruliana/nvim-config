@@ -1,0 +1,49 @@
+# Ignore plugin directories managed by package managers
+pack/
+plugin/packer_compiled.lua
+
+# Ignore session files
+*.vim.session
+Session.vim
+
+# Ignore undo files
+*.un~
+.undodir/
+
+# Ignore swap files
+*.swp
+*.swo
+*~
+
+# Ignore tags files
+tags
+.tags
+
+# Ignore local configuration overrides
+local.vim
+.local.vim
+*.local.lua
+
+# Ignore generated files
+.netrwhist
+
+# Ignore language server and linter caches
+.cache/
+.luacache/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore backup files
+*.bak
+*.backup
+
+# Ignore compiled Lua
+*.luac
+
+# Ignore BigQuery workspace config (project-specific)
+.bqrc.json
+.bqrc
+.bigqueryrc
+.bigquery.json

@@ -70,6 +70,58 @@ function M.browse_tables()
     end
   end
   
+  -- 4. If no tables yet, add help message and common datasets
+  if #tables == 0 then
+    -- Add help entries
+    table.insert(tables, {
+      value = "[Help] Run a query to populate MRU",
+      display = "💡 Run a query with <leader>bq to populate recent tables",
+      ordinal = "zzz_help_1",
+      category = "Help",
+      is_help = true
+    })
+    
+    table.insert(tables, {
+      value = "[Help] Create .bqrc.json",
+      display = "💡 Run :BQCreateConfig to create workspace config",
+      ordinal = "zzz_help_2", 
+      category = "Help",
+      is_help = true
+    })
+    
+    table.insert(tables, {
+      value = "[Help] Pin tables",
+      display = "💡 Use <leader>bp on a table reference to pin it",
+      ordinal = "zzz_help_3",
+      category = "Help",
+      is_help = true
+    })
+    
+    -- Try to add some common datasets if we have a default project
+    local default_project = workspace.get_default_project()
+    if default_project then
+      -- Common dataset patterns
+      local common_datasets = {
+        "scratch",
+        "staging", 
+        "raw",
+        "intermediate",
+        "reporting",
+        "analytics"
+      }
+      
+      for _, dataset_pattern in ipairs(common_datasets) do
+        table.insert(tables, {
+          value = default_project .. "." .. dataset_pattern,
+          display = default_project .. "." .. dataset_pattern .. " [search]",
+          ordinal = dataset_pattern,
+          category = "Suggested",
+          is_dataset = true
+        })
+      end
+    end
+  end
+  
   -- Create displayer
   local displayer = entry_display.create {
     separator = " ",
@@ -85,7 +137,9 @@ function M.browse_tables()
       Recent = "󱋡",
       Pinned = "📌",
       Dataset = "📁",
-      Table = "📊"
+      Table = "📊",
+      Help = "💡",
+      Suggested = "🔍"
     }
     
     local icon = category_icon[entry.category] or "📊"
@@ -114,6 +168,7 @@ function M.browse_tables()
           ordinal = entry.ordinal,
           category = entry.category,
           is_dataset = entry.is_dataset,
+          is_help = entry.is_help,
           use_count = entry.use_count
         }
       end
@@ -125,7 +180,10 @@ function M.browse_tables()
         actions.close(prompt_bufnr)
         
         if selection then
-          if selection.is_dataset then
+          if selection.is_help then
+            -- Don't insert help text
+            return
+          elseif selection.is_dataset then
             -- Expand dataset to show tables
             M.browse_dataset_tables(selection.value)
           else
