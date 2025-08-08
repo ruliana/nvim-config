@@ -7,7 +7,19 @@ return {
     cmd = { "BQRun", "BQRunSelection", "BQPrompt", "BQFormat" },
     ft = { "sql", "bq" },
     keys = {
-      { "<leader>bq", mode = { "n", "v" }, desc = "Run BigQuery" },
+      { 
+        "<leader>bq", 
+        function()
+          local mode = vim.api.nvim_get_mode().mode
+          if mode == "v" or mode == "V" or mode == "" then
+            vim.cmd("BQRunSelection")
+          else
+            vim.cmd("BQRun")
+          end
+        end,
+        mode = { "n", "v" }, 
+        desc = "Run BigQuery" 
+      },
       { "<leader>bQ", "<cmd>BQPrompt<cr>", desc = "BigQuery Prompt" },
       { "<leader>bf", "<cmd>BQFormat<cr>", desc = "BigQuery Format" },
     },
@@ -19,16 +31,6 @@ return {
         split_direction = "below",
         split_size = 15,
       })
-      
-      -- Set up keybindings that work in both normal and visual mode
-      vim.keymap.set({ "n", "v" }, "<leader>bq", function()
-        local mode = vim.api.nvim_get_mode().mode
-        if mode == "v" or mode == "V" or mode == "" then
-          vim.cmd("BQRunSelection")
-        else
-          vim.cmd("BQRun")
-        end
-      end, { desc = "Run BigQuery" })
     end,
   },
 }

@@ -35,16 +35,37 @@ end
 function M.execute(query, config)
   local display = require("bigquery.display")
   
-  -- Show notification that query is running
-  vim.notify("Running BigQuery query...", vim.log.levels.INFO)
-  
   local cmd = build_command(query, config)
   
-  -- Debug: print the command
-  vim.notify("Command: " .. table.concat(cmd, " "), vim.log.levels.DEBUG)
+  -- Initialize timing
+  local start_time = vim.loop.now()
   local output_lines = {}
   local error_lines = {}
-  local start_time = vim.loop.now()
+  
+  -- Progress indicator
+  local spinner_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+  local spinner_idx = 1
+  local progress_timer = nil
+  local job_running = true
+  
+  -- Function to show progress
+  local function show_progress()
+    if job_running then
+      local elapsed = math.floor((vim.loop.now() - start_time) / 1000)
+      local spinner = spinner_frames[spinner_idx]
+      spinner_idx = (spinner_idx % #spinner_frames) + 1
+      
+      -- Use echo instead of notify for less intrusive updates
+      vim.api.nvim_echo({{
+        string.format(" %s BigQuery query running... (%ds) ", spinner, elapsed),
+        "WarningMsg"
+      }}, false, {})
+    end
+  end
+  
+  -- Start progress indicator
+  progress_timer = vim.loop.new_timer()
+  progress_timer:start(0, 100, vim.schedule_wrap(show_progress))
   
   local job_id = vim.fn.jobstart(cmd, {
     stdout_buffered = true,
@@ -70,6 +91,16 @@ function M.execute(query, config)
     end,
     on_exit = function(_, exit_code)
       vim.schedule(function()
+        -- Stop the progress indicator
+        job_running = false
+        if progress_timer then
+          progress_timer:stop()
+          progress_timer:close()
+        end
+        
+        -- Clear the progress message
+        vim.api.nvim_echo({{"", ""}}, false, {})
+        
         local elapsed = (vim.loop.now() - start_time) / 1000
         
         if exit_code == 0 then
@@ -86,8 +117,20 @@ function M.execute(query, config)
   })
   
   if job_id == 0 then
+    job_running = false
+    if progress_timer then
+      progress_timer:stop()
+      progress_timer:close()
+    end
+    vim.api.nvim_echo({{"", ""}}, false, {})
     vim.notify("Failed to start BigQuery command", vim.log.levels.ERROR)
   elseif job_id == -1 then
+    job_running = false
+    if progress_timer then
+      progress_timer:stop()
+      progress_timer:close()
+    end
+    vim.api.nvim_echo({{"", ""}}, false, {})
     vim.notify("BigQuery command is not executable", vim.log.levels.ERROR)
   else
     -- Send the query via stdin
