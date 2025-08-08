@@ -58,15 +58,12 @@ syn match bqSystemVar "\<_FILE_NAME\>"
 " IMPORTANT: 3-part must come before 2-part to match correctly
 
 " 3-part: `project.dataset.table`
-syn match bqTableRef3Backtick /`[^.`]\+\.[^.`]\+\.[^.`]\+`/ contains=bqTableProject3,bqTableDataset3,bqTableName3
-syn match bqTableProject3 /`\zs[^.`]\+\ze\.[^.`]\+\.[^.`]\+`/ contained
-syn match bqTableDataset3 /`[^.`]\+\.\zs[^.`]\+\ze\.[^.`]\+`/ contained
-syn match bqTableName3 /`[^.`]\+\.[^.`]\+\.\zs[^.`]\+\ze`/ contained
+syn match bqTableRef3Backtick /`[^`]\+\.[^`]\+\.[^`]\+`/
+hi bqTableRef3Backtick guifg=#8be9fd ctermfg=117
 
-" 2-part: `dataset.table` (only matches if not 3-part)
-syn match bqTableRef2Backtick /`[^.`]\+\.[^.`]\+`/ contains=bqTableDataset2,bqTableName2
-syn match bqTableDataset2 /`\zs[^.`]\+\ze\.[^.`]\+`/ contained
-syn match bqTableName2 /`[^.`]\+\.\zs[^.`]\+\ze`/ contained
+" 2-part: `dataset.table` 
+syn match bqTableRef2Backtick /`[^`]\+\.[^`]\+`/
+hi bqTableRef2Backtick guifg=#8be9fd ctermfg=117
 
 " Table references WITHOUT backticks (when preceded by from, join, etc.)
 " 3-part: project.dataset.table
@@ -104,21 +101,12 @@ hi def link bqComment        Comment
 hi def link bqString         String
 hi def link bqTemplate       PreProc
 
-" Table reference highlighting - all variants
-" 3-part tables (project.dataset.table)
-hi def link bqTableRef3Backtick  Identifier
-hi def link bqTableProject3      Constant
-hi def link bqTableDataset3      Type  
-hi def link bqTableName3         Identifier
+" Table reference highlighting for non-backtick variants
 hi def link bqTableRef3          Identifier
 hi def link bqTableProject3NB    Constant
 hi def link bqTableDataset3NB    Type
 hi def link bqTableName3NB       Identifier
 
-" 2-part tables (dataset.table)
-hi def link bqTableRef2Backtick  Identifier
-hi def link bqTableDataset2      Type
-hi def link bqTableName2         Identifier
 hi def link bqTableRef2          Identifier
 hi def link bqTableDataset2NB    Type
 hi def link bqTableName2NB       Identifier
