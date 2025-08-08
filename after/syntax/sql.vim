@@ -14,6 +14,11 @@ syn keyword sqlFunction current_datetime current_timestamp
 syn keyword sqlFunction regexp_extract regexp_replace regexp_contains
 syn keyword sqlFunction safe_cast safe_divide
 
-" BigQuery backtick table references
-syn region sqlBQTableRef start=/`/ end=/`/
-hi def link sqlBQTableRef Identifier
+" BigQuery table references with backticks
+" 3-part: `project.dataset.table`
+syn match sqlBQTable3 /`[^`]*\.[^`]*\.[^`]*`/
+" 2-part: `dataset.table`  
+syn match sqlBQTable2 /`[^`]*\.[^`]*`/
+
+hi sqlBQTable3 guifg=#bd93f9 ctermfg=141
+hi sqlBQTable2 guifg=#bd93f9 ctermfg=141

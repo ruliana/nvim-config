@@ -50,13 +50,35 @@ syn match bqSystemVar "\<_PARTITIONDATE\>"
 syn match bqSystemVar "\<_PARTITIONTIME\>"
 syn match bqSystemVar "\<_FILE_NAME\>"
 
-" BigQuery table references with backticks
-syn region bqTableRef start=/`/ end=/`/ contains=bqTableProject,bqTableDataset,bqTableName
+" BigQuery table references
+" Support both 2-part (dataset.table) and 3-part (project.dataset.table) references
+" With or without backticks
 
-" Project.dataset.table pattern
-syn match bqTableProject /`\zs[^.`]*\ze\.[^.`]*\.[^.`]*`/ contained
-syn match bqTableDataset /`[^.`]*\.\zs[^.`]*\ze\.[^.`]*`/ contained
-syn match bqTableName /`[^.`]*\.[^.`]*\.\zs[^.`]*\ze`/ contained
+" Table references WITH backticks
+" IMPORTANT: 3-part must come before 2-part to match correctly
+
+" 3-part: `project.dataset.table`
+syn match bqTableRef3Backtick /`[^.`]\+\.[^.`]\+\.[^.`]\+`/ contains=bqTableProject3,bqTableDataset3,bqTableName3
+syn match bqTableProject3 /`\zs[^.`]\+\ze\.[^.`]\+\.[^.`]\+`/ contained
+syn match bqTableDataset3 /`[^.`]\+\.\zs[^.`]\+\ze\.[^.`]\+`/ contained
+syn match bqTableName3 /`[^.`]\+\.[^.`]\+\.\zs[^.`]\+\ze`/ contained
+
+" 2-part: `dataset.table` (only matches if not 3-part)
+syn match bqTableRef2Backtick /`[^.`]\+\.[^.`]\+`/ contains=bqTableDataset2,bqTableName2
+syn match bqTableDataset2 /`\zs[^.`]\+\ze\.[^.`]\+`/ contained
+syn match bqTableName2 /`[^.`]\+\.\zs[^.`]\+\ze`/ contained
+
+" Table references WITHOUT backticks (when preceded by from, join, etc.)
+" 3-part: project.dataset.table
+syn match bqTableRef3 /\(\<from\>\|\<join\>\|\<table\>\|\<into\>\)\s\+\zs[a-zA-Z_][a-zA-Z0-9_-]*\.[a-zA-Z_][a-zA-Z0-9_-]*\.[a-zA-Z_][a-zA-Z0-9_-]*/ contains=bqTableProject3NB,bqTableDataset3NB,bqTableName3NB
+syn match bqTableProject3NB /\zs[^.]\+\ze\.[^.]\+\.[^.]\+/ contained
+syn match bqTableDataset3NB /[^.]\+\.\zs[^.]\+\ze\.[^.]\+/ contained
+syn match bqTableName3NB /[^.]\+\.[^.]\+\.\zs[^.]\+/ contained
+
+" 2-part: dataset.table
+syn match bqTableRef2 /\(\<from\>\|\<join\>\|\<table\>\|\<into\>\)\s\+\zs[a-zA-Z_][a-zA-Z0-9_-]*\.[a-zA-Z_][a-zA-Z0-9_-]*\ze\($\|\s\|;\|)\)/ contains=bqTableDataset2NB,bqTableName2NB
+syn match bqTableDataset2NB /\zs[^.]\+\ze\.[^.]\+/ contained
+syn match bqTableName2NB /[^.]\+\.\zs[^.]\+/ contained
 
 " BigQuery comments (same as SQL but reinforced)
 syn match bqComment "--.*$"
@@ -78,13 +100,28 @@ hi def link bqPipeKeyword     Statement
 hi def link bqFunction        Function
 hi def link bqType           Type
 hi def link bqSystemVar      Special
-hi def link bqTableRef       Identifier
-hi def link bqTableProject   Constant
-hi def link bqTableDataset   Type
-hi def link bqTableName      Identifier
 hi def link bqComment        Comment
 hi def link bqString         String
 hi def link bqTemplate       PreProc
+
+" Table reference highlighting - all variants
+" 3-part tables (project.dataset.table)
+hi def link bqTableRef3Backtick  Identifier
+hi def link bqTableProject3      Constant
+hi def link bqTableDataset3      Type  
+hi def link bqTableName3         Identifier
+hi def link bqTableRef3          Identifier
+hi def link bqTableProject3NB    Constant
+hi def link bqTableDataset3NB    Type
+hi def link bqTableName3NB       Identifier
+
+" 2-part tables (dataset.table)
+hi def link bqTableRef2Backtick  Identifier
+hi def link bqTableDataset2      Type
+hi def link bqTableName2         Identifier
+hi def link bqTableRef2          Identifier
+hi def link bqTableDataset2NB    Type
+hi def link bqTableName2NB       Identifier
 
 " Special highlighting for pipe operator to make it stand out
 hi bqPipeOperator guifg=#ff79c6 ctermfg=212 gui=bold cterm=bold
