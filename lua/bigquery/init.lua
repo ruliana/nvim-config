@@ -5,6 +5,9 @@ M.config = nil
 function M.setup(opts)
   M.config = require("bigquery.config").setup(opts)
   
+  -- Initialize workspace config
+  require("bigquery.workspace").load()
+  
   -- Create commands
   vim.api.nvim_create_user_command("BQRun", function()
     M.run_query()
@@ -21,6 +24,64 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("BQFormat", function()
     M.cycle_format()
   end, { desc = "Cycle through BigQuery result formats" })
+  
+  -- New commands for autocomplete features
+  vim.api.nvim_create_user_command("BQBrowseTables", function()
+    require("bigquery.browser").browse_tables()
+  end, { desc = "Browse BigQuery tables with fuzzy finder" })
+  
+  vim.api.nvim_create_user_command("BQPinTable", function(opts)
+    local table_ref = opts.args
+    if table_ref == '' then
+      table_ref = require("bigquery.input").get_table_under_cursor()
+    end
+    if table_ref then
+      local workspace = require("bigquery.workspace")
+      if workspace.pin_table(table_ref) then
+        vim.notify("Pinned table: " .. table_ref, vim.log.levels.INFO)
+      else
+        vim.notify("Table already pinned: " .. table_ref, vim.log.levels.WARN)
+      end
+    else
+      vim.notify("No table reference found", vim.log.levels.ERROR)
+    end
+  end, { nargs = '?', desc = "Pin table for quick access" })
+  
+  vim.api.nvim_create_user_command("BQUnpinTable", function(opts)
+    local table_ref = opts.args
+    if table_ref == '' then
+      table_ref = require("bigquery.input").get_table_under_cursor()
+    end
+    if table_ref then
+      local workspace = require("bigquery.workspace")
+      if workspace.unpin_table(table_ref) then
+        vim.notify("Unpinned table: " .. table_ref, vim.log.levels.INFO)
+      else
+        vim.notify("Table not pinned: " .. table_ref, vim.log.levels.WARN)
+      end
+    else
+      vim.notify("No table reference found", vim.log.levels.ERROR)
+    end
+  end, { nargs = '?', desc = "Unpin table from quick access" })
+  
+  vim.api.nvim_create_user_command("BQClearCache", function()
+    require("bigquery.cache").clear_all()
+    vim.notify("BigQuery cache cleared", vim.log.levels.INFO)
+  end, { desc = "Clear BigQuery metadata cache" })
+  
+  vim.api.nvim_create_user_command("BQShowCache", function()
+    local stats = require("bigquery.cache").get_stats()
+    vim.notify(string.format("Cache: %d projects, %d datasets, %d tables, %d schemas",
+      stats.projects, stats.datasets, stats.tables, stats.schemas), vim.log.levels.INFO)
+  end, { desc = "Show BigQuery cache statistics" })
+  
+  vim.api.nvim_create_user_command("BQCreateConfig", function()
+    if require("bigquery.workspace").create_sample_config() then
+      vim.notify("Created .bqrc.json config file", vim.log.levels.INFO)
+    else
+      vim.notify("Failed to create config file", vim.log.levels.ERROR)
+    end
+  end, { desc = "Create sample BigQuery workspace config" })
 end
 
 function M.run_query()

@@ -106,6 +106,29 @@ function M.execute(query, config)
         if exit_code == 0 then
           if #output_lines > 0 then
             display.show_results(output_lines, config, query, elapsed)
+            
+            -- Track table usage in MRU
+            local tables = {}
+            -- Extract tables from query
+            for match in query:gmatch('`([^`]+%.[^`]+%.[^`]+)`') do
+              table.insert(tables, match)
+            end
+            for match in query:gmatch('`([^`]+%.[^`]+)`') do
+              -- Add default project if needed
+              local workspace = require("bigquery.workspace")
+              local default_project = workspace.get_default_project()
+              if default_project and not match:match('%..*%.') then
+                match = default_project .. '.' .. match
+              end
+              table.insert(tables, match)
+            end
+            
+            if #tables > 0 then
+              local mru = require("bigquery.mru")
+              for _, table_ref in ipairs(tables) do
+                mru.add(table_ref)
+              end
+            end
           else
             vim.notify("Query returned no results", vim.log.levels.INFO)
           end

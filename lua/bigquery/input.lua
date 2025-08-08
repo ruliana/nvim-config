@@ -138,4 +138,41 @@ function M.get_query_from_file(filepath)
   return content
 end
 
+-- Get table reference under cursor
+function M.get_table_under_cursor()
+  local line = vim.api.nvim_get_current_line()
+  local col = vim.api.nvim_win_get_cursor(0)[2]
+  
+  -- Try to find a table reference that includes the cursor position
+  -- Match 3-part references with backticks
+  for match_start, match, match_end in line:gmatch('()(`[^`]+%.[^`]+%.[^`]+`)()')  do
+    if col >= match_start - 1 and col < match_end - 1 then
+      return match:gsub('`', '')
+    end
+  end
+  
+  -- Match 2-part references with backticks
+  for match_start, match, match_end in line:gmatch('()(`[^`]+%.[^`]+`)()')  do
+    if col >= match_start - 1 and col < match_end - 1 then
+      return match:gsub('`', '')
+    end
+  end
+  
+  -- Try without backticks - 3-part
+  for match_start, match, match_end in line:gmatch('()([%w_%-]+%.[%w_%-]+%.[%w_%-]+)()')  do
+    if col >= match_start - 1 and col < match_end - 1 then
+      return match
+    end
+  end
+  
+  -- Try without backticks - 2-part
+  for match_start, match, match_end in line:gmatch('()([%w_%-]+%.[%w_%-]+)()')  do
+    if col >= match_start - 1 and col < match_end - 1 then
+      return match
+    end
+  end
+  
+  return nil
+end
+
 return M
