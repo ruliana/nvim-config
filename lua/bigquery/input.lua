@@ -1,6 +1,52 @@
 local M = {}
 
 function M.get_buffer_query()
+  -- Check if current buffer is a BigQuery results buffer
+  local buf_name = vim.api.nvim_buf_get_name(0)
+  if buf_name:match("BigQuery Results") or buf_name:match("BigQuery Error") then
+    -- Don't read from results/error buffers
+    -- Try to find a SQL buffer
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_is_valid(buf) then
+        local name = vim.api.nvim_buf_get_name(buf)
+        local ft = vim.api.nvim_buf_get_option(buf, "filetype")
+        if (ft == "sql" or ft == "bq" or name:match("%.sql$") or name:match("%.bq$")) 
+           and not name:match("BigQuery") then
+          -- Found a SQL buffer, read from it
+          local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+          
+          -- Filter out empty lines at the beginning and end
+          local start_idx = 1
+          local end_idx = #lines
+          
+          while start_idx <= #lines and lines[start_idx]:match("^%s*$") do
+            start_idx = start_idx + 1
+          end
+          
+          while end_idx >= 1 and lines[end_idx]:match("^%s*$") do
+            end_idx = end_idx - 1
+          end
+          
+          if start_idx > end_idx then
+            return nil
+          end
+          
+          -- Extract the relevant lines
+          local query_lines = {}
+          for i = start_idx, end_idx do
+            table.insert(query_lines, lines[i])
+          end
+          
+          return table.concat(query_lines, "\n")
+        end
+      end
+    end
+    
+    vim.notify("No SQL buffer found. Please open a .sql file first.", vim.log.levels.WARN)
+    return nil
+  end
+  
+  -- Current buffer is not a results buffer, read from it
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   
   -- Filter out empty lines at the beginning and end

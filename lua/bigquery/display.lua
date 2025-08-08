@@ -1,9 +1,26 @@
 local M = {}
 
 local function create_buffer(name, filetype)
+  -- First, try to find and reuse existing BigQuery Results buffer
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_valid(buf) then
+      local buf_name = vim.api.nvim_buf_get_name(buf)
+      if buf_name:match("BigQuery Results") then
+        -- Reuse this buffer - clear its contents and return it
+        vim.bo[buf].modifiable = true
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
+        vim.bo[buf].filetype = filetype or "sql"
+        return buf
+      end
+    end
+  end
+  
+  -- No existing buffer found, create a new one
   local buf = vim.api.nvim_create_buf(false, true)
   
-  vim.api.nvim_buf_set_name(buf, name)
+  -- Use a timestamp to make the name unique if needed
+  local unique_name = name .. " [" .. os.date("%H:%M:%S") .. "]"
+  vim.api.nvim_buf_set_name(buf, unique_name)
   vim.bo[buf].buftype = "nofile"
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].swapfile = false
@@ -13,6 +30,16 @@ local function create_buffer(name, filetype)
 end
 
 local function open_split(buf, config)
+  -- Check if buffer is already visible in a window
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_buf(win) == buf then
+      -- Buffer is already visible, just switch to it
+      vim.api.nvim_set_current_win(win)
+      return win
+    end
+  end
+  
+  -- Buffer not visible, create a new split
   local split_cmd = "split"
   
   if config.split_direction == "below" then
