@@ -14,6 +14,9 @@ function M.browse_tables()
     return
   end
   
+  -- Ensure workspace config is loaded
+  workspace.reload()
+  
   local finders = require('telescope.finders')
   local pickers = require('telescope.pickers')
   local conf = require('telescope.config').values
@@ -43,6 +46,8 @@ function M.browse_tables()
   
   -- 2. Add pinned tables
   local pinned_tables = workspace.get_pinned_tables()
+  -- Debug: print the number of pinned tables
+  -- vim.notify("Pinned tables: " .. #pinned_tables, vim.log.levels.INFO)
   for _, table_ref in ipairs(pinned_tables) do
     if not seen[table_ref] then
       seen[table_ref] = true

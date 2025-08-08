@@ -30,14 +30,26 @@ function M.load()
   }
   
   for _, filename in ipairs(config_files) do
+    -- Try both findfile and direct path
     local config_file = vim.fn.findfile(filename, '.;')
+    if config_file == '' then
+      -- Also try current working directory directly
+      local cwd_file = vim.fn.getcwd() .. '/' .. filename
+      if vim.fn.filereadable(cwd_file) == 1 then
+        config_file = cwd_file
+      end
+    end
+    
     if config_file ~= '' then
       local content = vim.fn.readfile(config_file)
       if #content > 0 then
         local ok, config = pcall(vim.json.decode, table.concat(content))
         if ok then
           M.config = vim.tbl_deep_extend('force', M.default_config, config)
+          -- vim.notify("Loaded BigQuery config from: " .. config_file, vim.log.levels.INFO)
           return M.config
+        else
+          vim.notify("Failed to parse BigQuery config: " .. config_file, vim.log.levels.WARN)
         end
       end
     end
