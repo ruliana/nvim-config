@@ -2,7 +2,24 @@
   "permissions": {
     "allow": [
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(nvim:*)",
+      "Bash(rm:*)",
+      "Bash(git checkout:*)",
+      "Bash(bq query:*)",
+      "Bash(gcloud config get-value:*)",
+      "Bash(timeout 25 nvim:*)",
+      "Bash(timeout 50 nvim --headless -c \"luafile /tmp/test_multiple_verbose.lua\")",
+      "Bash(timeout 35 nvim --headless -c \"luafile /tmp/test_job_debug.lua\")",
+      "Bash(timeout:*)",
+      "Bash(git restore:*)",
+      "Bash(mkdir:*)",
+      "Bash(git rm:*)",
+      "Bash(cat:*)",
+      "Bash(python3:*)",
+      "Bash(/dev/null)",
+      "Bash(bq ls:*)",
+      "Bash(lua:*)"
     ],
     "deny": []
   }

@@ -8,6 +8,9 @@ function M.setup(opts)
   -- Initialize workspace config
   require("bigquery.workspace").load()
   
+  -- Start background refresh for frequently used tables
+  require("bigquery.background").start()
+  
   -- Create commands
   vim.api.nvim_create_user_command("BQRun", function()
     M.run_query()
@@ -82,6 +85,14 @@ function M.setup(opts)
       vim.notify("Failed to create config file", vim.log.levels.ERROR)
     end
   end, { desc = "Create sample BigQuery workspace config" })
+  
+  vim.api.nvim_create_user_command("BQDiscoverUsage", function()
+    require("bigquery.discover").discover_frequent_usage()
+  end, { desc = "Discover frequently used BigQuery projects and datasets from your usage" })
+  
+  vim.api.nvim_create_user_command("BQDiscoverTables", function()
+    require("bigquery.discover").discover_frequent_tables()
+  end, { desc = "Discover frequently used tables and add to pinned list" })
 end
 
 function M.run_query()

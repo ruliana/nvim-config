@@ -18,7 +18,9 @@ return {
       "BQUnpinTable",
       "BQClearCache",
       "BQShowCache",
-      "BQCreateConfig"
+      "BQCreateConfig",
+      "BQDiscoverUsage",
+      "BQDiscoverTables"
     },
     ft = { "sql", "bq", "bigquery" },
     keys = {
@@ -40,6 +42,7 @@ return {
       { "<leader>bt", "<cmd>BQBrowseTables<cr>", desc = "Browse BigQuery tables" },
       { "<leader>bp", "<cmd>BQPinTable<cr>", desc = "Pin current table" },
       { "<leader>bc", "<cmd>BQClearCache<cr>", desc = "Clear BigQuery cache" },
+      { "<leader>bd", "<cmd>BQDiscoverUsage<cr>", desc = "Discover BigQuery usage patterns" },
     },
     config = function()
       require("bigquery").setup({

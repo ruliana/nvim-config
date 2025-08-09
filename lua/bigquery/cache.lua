@@ -9,7 +9,8 @@ M.config = {
   datasets = { ttl = 14400 },    -- 4 hours
   tables = { ttl = 3600 },       -- 1 hour
   schemas = { ttl = 43200 },     -- 12 hours
-  temp_tables = { ttl = 300 }    -- 5 minutes for temp/scratch
+  temp_tables = { ttl = 300 },   -- 5 minutes for temp/scratch
+  user_usage = { ttl = 3600 }    -- 1 hour for usage data
 }
 
 -- In-memory cache
@@ -17,7 +18,8 @@ M.cache = {
   projects = { data = nil, last_update = 0 },
   datasets = {},  -- Per-project
   tables = {},    -- Per-dataset
-  schemas = {}    -- Per-table
+  schemas = {},   -- Per-table
+  user_usage = {} -- Per-user usage patterns
 }
 
 -- Initialize cache directory
@@ -52,12 +54,40 @@ function M.get_cache_key(type, ...)
     return 'tables:' .. parts[1] .. '.' .. parts[2]  -- project.dataset
   elseif type == 'schema' then
     return 'schema:' .. table.concat(parts, '.')  -- full table ref
+  elseif type == 'user_usage' then
+    return 'user_usage:' .. parts[1]  -- user_email:days_back
+  else
+    -- For any other type, just use the first part as-is
+    return parts[1] or type
   end
 end
 
 -- Get with cache
 function M.get(cache_type, key, fetch_fn)
-  local cache_key = M.get_cache_key(cache_type, key)
+  -- Validate inputs
+  if not cache_type or not key then
+    return fetch_fn and fetch_fn() or nil
+  end
+  
+  -- Ensure cache type exists
+  if not M.cache[cache_type] then
+    if cache_type == 'projects' then
+      M.cache[cache_type] = { data = nil, last_update = 0 }
+    else
+      M.cache[cache_type] = {}
+    end
+  end
+  
+  -- Handle different key formats
+  local cache_key
+  if cache_type == 'tables' and type(key) == 'string' and key:match('%.') then
+    -- Split project.dataset format
+    local project, dataset = key:match('([^.]+)%.([^.]+)')
+    cache_key = M.get_cache_key(cache_type, project, dataset)
+  else
+    cache_key = M.get_cache_key(cache_type, key)
+  end
+  
   local cache_entry = M.cache[cache_type]
   
   -- Handle nested cache structure
@@ -86,6 +116,10 @@ function M.get(cache_type, key, fetch_fn)
   cache_entry.last_update = now
   
   if cache_type ~= 'projects' then
+    -- Ensure the cache type exists
+    if not M.cache[cache_type] then
+      M.cache[cache_type] = {}
+    end
     M.cache[cache_type][cache_key] = cache_entry
   else
     M.cache.projects = cache_entry
@@ -115,7 +149,8 @@ function M.clear_all()
     projects = { data = nil, last_update = 0 },
     datasets = {},
     tables = {},
-    schemas = {}
+    schemas = {},
+    user_usage = {}
   }
 end
 

@@ -13,7 +13,14 @@ M.default_config = {
     "*_test"
   },
   default_project = nil,
-  default_location = "US"
+  default_location = "US",
+  -- Global search configuration
+  search_targets = {
+    {project = "sdp-prd-cti-data", datasets = {"intermediate", "mart", "scratch"}},
+    {project = "sdp-stg-cti-data", datasets = {"intermediate", "mart", "scratch"}},
+    {project = "shopify-dw", datasets = {"intermediate", "marts", "mart_payments"}}
+  },
+  default_search_datasets = {"intermediate", "mart", "scratch", "staging", "raw"}
 }
 
 -- Current workspace config
@@ -152,6 +159,22 @@ function M.save()
   return false
 end
 
+-- Get search targets configuration
+function M.get_search_targets()
+  if not M.config then
+    M.load()
+  end
+  return M.config.search_targets or M.default_config.search_targets
+end
+
+-- Get default search datasets
+function M.get_default_search_datasets()
+  if not M.config then
+    M.load()
+  end
+  return M.config.default_search_datasets or M.default_config.default_search_datasets
+end
+
 -- Create a sample config file
 function M.create_sample_config()
   local sample = {
@@ -169,7 +192,13 @@ function M.create_sample_config()
       "*_backup_*"
     },
     default_project = "your-default-project",
-    default_location = "US"
+    default_location = "US",
+    search_targets = {
+      {project = "sdp-prd-cti-data", datasets = {"intermediate", "mart", "scratch"}},
+      {project = "sdp-stg-cti-data", datasets = {"intermediate", "mart", "scratch"}},
+      {project = "shopify-dw", datasets = {"intermediate", "marts", "mart_payments"}}
+    },
+    default_search_datasets = {"intermediate", "mart", "scratch", "staging", "raw"}
   }
   
   local config_file = vim.fn.getcwd() .. '/.bqrc.json'
