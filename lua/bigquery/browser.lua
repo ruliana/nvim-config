@@ -160,11 +160,19 @@ function M.browse_tables()
     }
   end
   
+  -- Cache for search results and state tracking
+  local search_cache = {}
+  local search_in_progress = {}
+  local spinner_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+  local spinner_idx = 1
+  
   -- Create a dynamic finder that can search BigQuery when needed
   local dynamic_finder = finders.new_dynamic {
     fn = function(prompt)
       -- If prompt is empty or very short, return cached tables
       if not prompt or #prompt < 3 then
+        search_cache = {}  -- Clear cache when prompt is cleared
+        search_in_progress = {}
         return tables
       end
       
@@ -181,31 +189,75 @@ function M.browse_tables()
         return filtered
       end
       
-      -- No local matches and prompt is long enough - search BigQuery
-      vim.notify("Searching BigQuery for: " .. prompt, vim.log.levels.INFO)
-      local search_results = api.search_tables(prompt, 50)
-      
-      local results = {}
-      for _, result in ipairs(search_results or {}) do
-        table.insert(results, {
-          value = result.full_ref or result,
-          display = "[Found] " .. (result.full_ref or result),
-          ordinal = result.full_ref or result,
-          category = "Search"
-        })
+      -- Check if we already have cached results for this prompt
+      if search_cache[prompt] then
+        return search_cache[prompt]
       end
       
-      if #results == 0 then
-        table.insert(results, {
-          value = "[No results found]",
-          display = "No tables found matching: " .. prompt,
-          ordinal = "zzz_no_results",
-          category = "Info",
+      -- Check if search is already in progress for this prompt
+      if search_in_progress[prompt] then
+        spinner_idx = (spinner_idx % #spinner_frames) + 1
+        return {
+          {
+            value = "[Loading...]",
+            display = spinner_frames[spinner_idx] .. " Searching BigQuery for: " .. prompt .. " ...",
+            ordinal = "aaa_loading",
+            category = "Loading",
+            is_help = true
+          }
+        }
+      end
+      
+      -- Mark search as in progress
+      search_in_progress[prompt] = true
+      
+      -- Start async search
+      vim.defer_fn(function()
+        local search_results = api.search_tables(prompt, 50)
+        
+        local results = {}
+        for _, result in ipairs(search_results or {}) do
+          table.insert(results, {
+            value = result.full_ref or result,
+            display = "[Found] " .. (result.full_ref or result),
+            ordinal = result.full_ref or result,
+            category = "Search"
+          })
+        end
+        
+        if #results == 0 then
+          table.insert(results, {
+            value = "[No results found]",
+            display = "No tables found matching: " .. prompt,
+            ordinal = "zzz_no_results",
+            category = "Info",
+            is_help = true
+          })
+        end
+        
+        -- Cache the results
+        search_cache[prompt] = results
+        search_in_progress[prompt] = false
+        
+        -- Trigger picker refresh
+        vim.schedule(function()
+          local picker = require('telescope.state').get_global_key('current_picker')
+          if picker then
+            picker:refresh(dynamic_finder, { reset_prompt = false })
+          end
+        end)
+      end, 100)  -- Small delay to debounce typing
+      
+      -- Return loading indicator with spinner
+      return {
+        {
+          value = "[Loading...]",
+          display = spinner_frames[1] .. " Searching BigQuery for: " .. prompt .. " ...",
+          ordinal = "aaa_loading",
+          category = "Loading",
           is_help = true
-        })
-      end
-      
-      return results
+        }
+      }
     end,
     entry_maker = function(entry)
       if type(entry) == "string" then
