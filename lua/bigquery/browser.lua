@@ -160,31 +160,85 @@ function M.browse_tables()
     }
   end
   
-  pickers.new({}, {
-    prompt_title = "BigQuery Tables",
-    finder = finders.new_table {
-      results = tables,
-      entry_maker = function(entry)
-        -- Simplified entry maker for debugging
-        local display_str = entry.value
-        if entry.category then
-          display_str = "[" .. entry.category .. "] " .. display_str
+  -- Create a dynamic finder that can search BigQuery when needed
+  local dynamic_finder = finders.new_dynamic {
+    fn = function(prompt)
+      -- If prompt is empty or very short, return cached tables
+      if not prompt or #prompt < 3 then
+        return tables
+      end
+      
+      -- First, filter local tables
+      local filtered = {}
+      for _, item in ipairs(tables) do
+        if item.value:lower():find(prompt:lower(), 1, true) then
+          table.insert(filtered, item)
         end
-        if entry.use_count then
-          display_str = display_str .. " (" .. entry.use_count .. "x)"
-        end
-        
+      end
+      
+      -- If we have local matches, return them
+      if #filtered > 0 then
+        return filtered
+      end
+      
+      -- No local matches and prompt is long enough - search BigQuery
+      vim.notify("Searching BigQuery for: " .. prompt, vim.log.levels.INFO)
+      local search_results = api.search_tables(prompt, 50)
+      
+      local results = {}
+      for _, result in ipairs(search_results or {}) do
+        table.insert(results, {
+          value = result.full_ref or result,
+          display = "[Found] " .. (result.full_ref or result),
+          ordinal = result.full_ref or result,
+          category = "Search"
+        })
+      end
+      
+      if #results == 0 then
+        table.insert(results, {
+          value = "[No results found]",
+          display = "No tables found matching: " .. prompt,
+          ordinal = "zzz_no_results",
+          category = "Info",
+          is_help = true
+        })
+      end
+      
+      return results
+    end,
+    entry_maker = function(entry)
+      if type(entry) == "string" then
         return {
-          value = entry.value,
-          display = display_str,  -- Use simple string instead of function
-          ordinal = entry.ordinal or entry.value,  -- Ensure ordinal is set
-          category = entry.category,
-          is_dataset = entry.is_dataset,
-          is_help = entry.is_help,
-          use_count = entry.use_count
+          value = entry,
+          display = entry,
+          ordinal = entry
         }
       end
-    },
+      
+      local display_str = entry.value
+      if entry.category then
+        display_str = "[" .. entry.category .. "] " .. display_str
+      end
+      if entry.use_count then
+        display_str = display_str .. " (" .. entry.use_count .. "x)"
+      end
+      
+      return {
+        value = entry.value,
+        display = display_str,
+        ordinal = entry.ordinal or entry.value,
+        category = entry.category,
+        is_dataset = entry.is_dataset,
+        is_help = entry.is_help,
+        use_count = entry.use_count
+      }
+    end
+  }
+  
+  pickers.new({}, {
+    prompt_title = "BigQuery Tables (type 3+ chars to search)",
+    finder = dynamic_finder,
     sorter = conf.generic_sorter({}),
     attach_mappings = function(prompt_bufnr, map)
       actions.select_default:replace(function()
@@ -220,8 +274,8 @@ function M.browse_tables()
         end
       end)
       
-      -- Add custom mapping to pin/unpin tables
-      map('i', '<C-p>', function()
+      -- Add custom mapping to pin/unpin tables using Alt-p
+      map('i', '<M-p>', function()
         local selection = action_state.get_selected_entry()
         if selection and not selection.is_dataset then
           if selection.category == "Pinned" then
@@ -231,6 +285,19 @@ function M.browse_tables()
             workspace.pin_table(selection.value)
             vim.notify("Pinned: " .. selection.value, vim.log.levels.INFO)
           end
+        end
+      end)
+      
+      -- Add mapping to search for more tables using Alt-s
+      map('i', '<M-s>', function()
+        local current_picker = action_state.get_current_picker(prompt_bufnr)
+        local search_term = current_picker:_get_prompt()
+        actions.close(prompt_bufnr)
+        
+        if search_term and #search_term > 2 then
+          M.search_tables(search_term)
+        else
+          vim.notify("Enter at least 3 characters to search", vim.log.levels.WARN)
         end
       end)
       
