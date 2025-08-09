@@ -46,8 +46,6 @@ function M.browse_tables()
   
   -- 2. Add pinned tables
   local pinned_tables = workspace.get_pinned_tables()
-  -- Debug: print the number of pinned tables
-  -- vim.notify("Pinned tables: " .. #pinned_tables, vim.log.levels.INFO)
   for _, table_ref in ipairs(pinned_tables) do
     if not seen[table_ref] then
       seen[table_ref] = true
@@ -167,10 +165,19 @@ function M.browse_tables()
     finder = finders.new_table {
       results = tables,
       entry_maker = function(entry)
+        -- Simplified entry maker for debugging
+        local display_str = entry.value
+        if entry.category then
+          display_str = "[" .. entry.category .. "] " .. display_str
+        end
+        if entry.use_count then
+          display_str = display_str .. " (" .. entry.use_count .. "x)"
+        end
+        
         return {
           value = entry.value,
-          display = make_display,
-          ordinal = entry.ordinal,
+          display = display_str,  -- Use simple string instead of function
+          ordinal = entry.ordinal or entry.value,  -- Ensure ordinal is set
           category = entry.category,
           is_dataset = entry.is_dataset,
           is_help = entry.is_help,
