@@ -52,7 +52,7 @@ syn match bqSystemVar "\<_FILE_NAME\>"
 
 " BigQuery table references
 " Support both 2-part (dataset.table) and 3-part (project.dataset.table) references
-" With or without backticks
+" Table references must be enclosed in backticks
 
 " Table references WITH backticks
 " IMPORTANT: 3-part must come before 2-part to match correctly
@@ -64,18 +64,6 @@ hi bqTableRef3Backtick guifg=#8be9fd ctermfg=117
 " 2-part: `dataset.table` 
 syn match bqTableRef2Backtick /`[^`]\+\.[^`]\+`/
 hi bqTableRef2Backtick guifg=#8be9fd ctermfg=117
-
-" Table references WITHOUT backticks (when preceded by from, join, etc.)
-" 3-part: project.dataset.table
-syn match bqTableRef3 /\(\<from\>\|\<join\>\|\<table\>\|\<into\>\)\s\+\zs[a-zA-Z_][a-zA-Z0-9_-]*\.[a-zA-Z_][a-zA-Z0-9_-]*\.[a-zA-Z_][a-zA-Z0-9_-]*/ contains=bqTableProject3NB,bqTableDataset3NB,bqTableName3NB
-syn match bqTableProject3NB /\zs[^.]\+\ze\.[^.]\+\.[^.]\+/ contained
-syn match bqTableDataset3NB /[^.]\+\.\zs[^.]\+\ze\.[^.]\+/ contained
-syn match bqTableName3NB /[^.]\+\.[^.]\+\.\zs[^.]\+/ contained
-
-" 2-part: dataset.table
-syn match bqTableRef2 /\(\<from\>\|\<join\>\|\<table\>\|\<into\>\)\s\+\zs[a-zA-Z_][a-zA-Z0-9_-]*\.[a-zA-Z_][a-zA-Z0-9_-]*\ze\($\|\s\|;\|)\)/ contains=bqTableDataset2NB,bqTableName2NB
-syn match bqTableDataset2NB /\zs[^.]\+\ze\.[^.]\+/ contained
-syn match bqTableName2NB /[^.]\+\.\zs[^.]\+/ contained
 
 " BigQuery comments (same as SQL but reinforced)
 syn match bqComment "--.*$"
@@ -100,16 +88,6 @@ hi def link bqSystemVar      Special
 hi def link bqComment        Comment
 hi def link bqString         String
 hi def link bqTemplate       PreProc
-
-" Table reference highlighting for non-backtick variants
-hi def link bqTableRef3          Identifier
-hi def link bqTableProject3NB    Constant
-hi def link bqTableDataset3NB    Type
-hi def link bqTableName3NB       Identifier
-
-hi def link bqTableRef2          Identifier
-hi def link bqTableDataset2NB    Type
-hi def link bqTableName2NB       Identifier
 
 " Special highlighting for pipe operator to make it stand out
 hi bqPipeOperator guifg=#ff79c6 ctermfg=212 gui=bold cterm=bold
