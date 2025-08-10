@@ -35,6 +35,15 @@ end
 function M.execute(query, config)
   local display = require("bigquery.display")
   
+  -- Debug logging
+  local debug_file = io.open("/tmp/bigquery_debug.log", "a")
+  if debug_file then
+    debug_file:write("\n\n=== NEW QUERY EXECUTION ===\n")
+    debug_file:write("Time: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n")
+    debug_file:write("Query: " .. query:sub(1, 200) .. "\n")
+    debug_file:flush()
+  end
+  
   local cmd = build_command(query, config)
   
   -- Initialize timing
@@ -48,24 +57,24 @@ function M.execute(query, config)
   local progress_timer = nil
   local job_running = true
   
-  -- Function to show progress
-  local function show_progress()
+  -- Function to update progress
+  local function update_progress()
     if job_running then
       local elapsed = math.floor((vim.loop.now() - start_time) / 1000)
       local spinner = spinner_frames[spinner_idx]
       spinner_idx = (spinner_idx % #spinner_frames) + 1
       
-      -- Use echo instead of notify for less intrusive updates
-      vim.api.nvim_echo({{
-        string.format(" %s BigQuery query running... (%ds) ", spinner, elapsed),
-        "WarningMsg"
-      }}, false, {})
+      -- Set global variable for statusline
+      vim.g.bigquery_status = string.format("%s BigQuery running... (%ds)", spinner, elapsed)
+      
+      -- Force statusline redraw
+      vim.cmd('redrawstatus')
     end
   end
   
   -- Start progress indicator
   progress_timer = vim.loop.new_timer()
-  progress_timer:start(0, 100, vim.schedule_wrap(show_progress))
+  progress_timer:start(0, 100, vim.schedule_wrap(update_progress))
   
   local job_id = vim.fn.jobstart(cmd, {
     stdout_buffered = true,
@@ -75,6 +84,10 @@ function M.execute(query, config)
         for _, line in ipairs(data) do
           if line ~= "" then
             table.insert(output_lines, line)
+            if debug_file then
+              debug_file:write("STDOUT: " .. line .. "\n")
+              debug_file:flush()
+            end
           end
         end
       end
@@ -82,9 +95,16 @@ function M.execute(query, config)
     on_stderr = function(_, data)
       if data then
         for _, line in ipairs(data) do
-          -- Filter out progress messages from bq command
+          -- Filter out progress messages from bq command, but keep DDL success messages
           if line ~= "" and not line:match("^Waiting on bqjob") and not line:match("Current status:") then
             table.insert(error_lines, line)
+            if debug_file then
+              debug_file:write("STDERR (added to error_lines): " .. line .. "\n")
+              debug_file:flush()
+            end
+          elseif line ~= "" and debug_file then
+            debug_file:write("STDERR (filtered): " .. line .. "\n")
+            debug_file:flush()
           end
         end
       end
@@ -98,14 +118,71 @@ function M.execute(query, config)
           progress_timer:close()
         end
         
-        -- Clear the progress message
-        vim.api.nvim_echo({{"", ""}}, false, {})
+        -- Clear the status from statusline
+        vim.g.bigquery_status = nil
+        vim.cmd('redrawstatus')
         
         local elapsed = (vim.loop.now() - start_time) / 1000
         
-        if exit_code == 0 then
+        if debug_file then
+          debug_file:write("\n=== EXIT HANDLER ===\n")
+          debug_file:write("Exit code: " .. exit_code .. "\n")
+          debug_file:write("Output lines count: " .. #output_lines .. "\n")
+          debug_file:write("Error lines count: " .. #error_lines .. "\n")
+          debug_file:write("Elapsed time: " .. elapsed .. "s\n")
+          
           if #output_lines > 0 then
-            display.show_results(output_lines, config, query, elapsed)
+            debug_file:write("First output line: " .. output_lines[1] .. "\n")
+          end
+          if #error_lines > 0 then
+            debug_file:write("First error line: " .. error_lines[1] .. "\n")
+          end
+        end
+        
+        if exit_code == 0 then
+          -- Check for DDL statements that might have simple output
+          local is_ddl = query:lower():match("^%s*drop%s+") or 
+                        query:lower():match("^%s*create%s+") or
+                        query:lower():match("^%s*alter%s+") or
+                        query:lower():match("^%s*truncate%s+")
+          
+          if debug_file then
+            debug_file:write("Is DDL: " .. tostring(is_ddl) .. "\n")
+          end
+          
+          if #output_lines > 0 then
+            -- Check if output is a DDL success message
+            local is_ddl_success = false
+            local ddl_message = nil
+            
+            if is_ddl and #output_lines == 1 then
+              local line = output_lines[1]
+              if debug_file then
+                debug_file:write("Checking line for DDL success: " .. line .. "\n")
+              end
+              if line:match("^Dropped ") or line:match("^Created ") or 
+                 line:match("^Altered ") or line:match("^Truncated ") then
+                is_ddl_success = true
+                ddl_message = line
+                if debug_file then
+                  debug_file:write("DDL success detected: " .. ddl_message .. "\n")
+                end
+              end
+            end
+            
+            if is_ddl_success then
+              -- Show simple notification for DDL success
+              if debug_file then
+                debug_file:write("Showing DDL notification\n")
+              end
+              vim.notify(ddl_message .. string.format(" (%.2fs)", elapsed), vim.log.levels.INFO)
+            else
+              -- Show normal results window for SELECT queries
+              if debug_file then
+                debug_file:write("Showing results window\n")
+              end
+              display.show_results(output_lines, config, query, elapsed)
+            end
             
             -- Track table usage in MRU
             local tables = {}
@@ -130,10 +207,48 @@ function M.execute(query, config)
               end
             end
           else
+            if debug_file then
+              debug_file:write("No output lines - showing 'no results' message\n")
+            end
             vim.notify("Query returned no results", vim.log.levels.INFO)
           end
         else
-          M.handle_error(error_lines, query)
+          if debug_file then
+            debug_file:write("Exit code non-zero, calling handle_error\n")
+            debug_file:write("Error lines to pass:\n")
+            for i, line in ipairs(error_lines) do
+              debug_file:write("  " .. i .. ": " .. line .. "\n")
+            end
+          end
+          
+          -- Check if error came through stdout instead of stderr
+          local actual_error_lines = error_lines
+          if #error_lines == 0 and #output_lines > 0 then
+            -- Check if stdout contains error messages
+            local has_error = false
+            for _, line in ipairs(output_lines) do
+              if line:match("^Error") or line:match("error:") or line:match("Syntax error") then
+                has_error = true
+                break
+              end
+            end
+            
+            if has_error then
+              -- Use stdout as error lines since that's where BigQuery sent the error
+              actual_error_lines = output_lines
+              if debug_file then
+                debug_file:write("Using stdout as error source since stderr is empty\n")
+              end
+            end
+          end
+          
+          M.handle_error(actual_error_lines, query)
+        end
+        
+        -- Close debug file
+        if debug_file then
+          debug_file:write("=== END OF EXECUTION ===\n\n")
+          debug_file:close()
         end
       end)
     end,
@@ -145,7 +260,8 @@ function M.execute(query, config)
       progress_timer:stop()
       progress_timer:close()
     end
-    vim.api.nvim_echo({{"", ""}}, false, {})
+    vim.g.bigquery_status = nil
+    vim.cmd('redrawstatus')
     vim.notify("Failed to start BigQuery command", vim.log.levels.ERROR)
   elseif job_id == -1 then
     job_running = false
@@ -153,7 +269,8 @@ function M.execute(query, config)
       progress_timer:stop()
       progress_timer:close()
     end
-    vim.api.nvim_echo({{"", ""}}, false, {})
+    vim.g.bigquery_status = nil
+    vim.cmd('redrawstatus')
     vim.notify("BigQuery command is not executable", vim.log.levels.ERROR)
   else
     -- Send the query via stdin

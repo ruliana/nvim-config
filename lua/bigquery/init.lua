@@ -11,6 +11,9 @@ function M.setup(opts)
   -- Start background refresh for frequently used tables
   require("bigquery.background").start()
   
+  -- Setup statusline integration
+  require("bigquery.statusline").setup()
+  
   -- Create commands
   vim.api.nvim_create_user_command("BQRun", function()
     M.run_query()
@@ -99,10 +102,15 @@ function M.run_query()
   local input = require("bigquery.input")
   local executor = require("bigquery.executor")
   
-  local query = input.get_buffer_query()
+  -- Try to get query at cursor position first
+  local query = input.get_query_at_cursor()
   if not query or query == "" then
-    vim.notify("No query found in buffer", vim.log.levels.WARN)
-    return
+    -- Fall back to getting the entire buffer
+    query = input.get_buffer_query()
+    if not query or query == "" then
+      vim.notify("No query found at cursor or in buffer", vim.log.levels.WARN)
+      return
+    end
   end
   
   executor.execute(query, M.config)
