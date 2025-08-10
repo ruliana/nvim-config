@@ -35,14 +35,6 @@ end
 function M.execute(query, config)
   local display = require("bigquery.display")
   
-  -- Debug logging
-  local debug_file = io.open("/tmp/bigquery_debug.log", "a")
-  if debug_file then
-    debug_file:write("\n\n=== NEW QUERY EXECUTION ===\n")
-    debug_file:write("Time: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n")
-    debug_file:write("Query: " .. query:sub(1, 200) .. "\n")
-    debug_file:flush()
-  end
   
   local cmd = build_command(query, config)
   
@@ -84,10 +76,6 @@ function M.execute(query, config)
         for _, line in ipairs(data) do
           if line ~= "" then
             table.insert(output_lines, line)
-            if debug_file then
-              debug_file:write("STDOUT: " .. line .. "\n")
-              debug_file:flush()
-            end
           end
         end
       end
@@ -98,13 +86,6 @@ function M.execute(query, config)
           -- Filter out progress messages from bq command, but keep DDL success messages
           if line ~= "" and not line:match("^Waiting on bqjob") and not line:match("Current status:") then
             table.insert(error_lines, line)
-            if debug_file then
-              debug_file:write("STDERR (added to error_lines): " .. line .. "\n")
-              debug_file:flush()
-            end
-          elseif line ~= "" and debug_file then
-            debug_file:write("STDERR (filtered): " .. line .. "\n")
-            debug_file:flush()
           end
         end
       end
@@ -124,20 +105,6 @@ function M.execute(query, config)
         
         local elapsed = (vim.loop.now() - start_time) / 1000
         
-        if debug_file then
-          debug_file:write("\n=== EXIT HANDLER ===\n")
-          debug_file:write("Exit code: " .. exit_code .. "\n")
-          debug_file:write("Output lines count: " .. #output_lines .. "\n")
-          debug_file:write("Error lines count: " .. #error_lines .. "\n")
-          debug_file:write("Elapsed time: " .. elapsed .. "s\n")
-          
-          if #output_lines > 0 then
-            debug_file:write("First output line: " .. output_lines[1] .. "\n")
-          end
-          if #error_lines > 0 then
-            debug_file:write("First error line: " .. error_lines[1] .. "\n")
-          end
-        end
         
         if exit_code == 0 then
           -- Check for DDL statements that might have simple output
@@ -146,9 +113,6 @@ function M.execute(query, config)
                         query:lower():match("^%s*alter%s+") or
                         query:lower():match("^%s*truncate%s+")
           
-          if debug_file then
-            debug_file:write("Is DDL: " .. tostring(is_ddl) .. "\n")
-          end
           
           if #output_lines > 0 then
             -- Check if output is a DDL success message
@@ -157,30 +121,18 @@ function M.execute(query, config)
             
             if is_ddl and #output_lines == 1 then
               local line = output_lines[1]
-              if debug_file then
-                debug_file:write("Checking line for DDL success: " .. line .. "\n")
-              end
               if line:match("^Dropped ") or line:match("^Created ") or 
                  line:match("^Altered ") or line:match("^Truncated ") then
                 is_ddl_success = true
                 ddl_message = line
-                if debug_file then
-                  debug_file:write("DDL success detected: " .. ddl_message .. "\n")
-                end
               end
             end
             
             if is_ddl_success then
               -- Show simple notification for DDL success
-              if debug_file then
-                debug_file:write("Showing DDL notification\n")
-              end
               vim.notify(ddl_message .. string.format(" (%.2fs)", elapsed), vim.log.levels.INFO)
             else
               -- Show normal results window for SELECT queries
-              if debug_file then
-                debug_file:write("Showing results window\n")
-              end
               display.show_results(output_lines, config, query, elapsed)
             end
             
@@ -207,19 +159,9 @@ function M.execute(query, config)
               end
             end
           else
-            if debug_file then
-              debug_file:write("No output lines - showing 'no results' message\n")
-            end
             vim.notify("Query returned no results", vim.log.levels.INFO)
           end
         else
-          if debug_file then
-            debug_file:write("Exit code non-zero, calling handle_error\n")
-            debug_file:write("Error lines to pass:\n")
-            for i, line in ipairs(error_lines) do
-              debug_file:write("  " .. i .. ": " .. line .. "\n")
-            end
-          end
           
           -- Check if error came through stdout instead of stderr
           local actual_error_lines = error_lines
@@ -236,20 +178,12 @@ function M.execute(query, config)
             if has_error then
               -- Use stdout as error lines since that's where BigQuery sent the error
               actual_error_lines = output_lines
-              if debug_file then
-                debug_file:write("Using stdout as error source since stderr is empty\n")
-              end
             end
           end
           
           M.handle_error(actual_error_lines, query)
         end
         
-        -- Close debug file
-        if debug_file then
-          debug_file:write("=== END OF EXECUTION ===\n\n")
-          debug_file:close()
-        end
       end)
     end,
   })

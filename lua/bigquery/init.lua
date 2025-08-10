@@ -124,6 +124,31 @@ function M.run_selection(line1, line2)
   if line1 and line2 then
     -- Get lines from range
     local lines = vim.api.nvim_buf_get_lines(0, line1 - 1, line2, false)
+    
+    -- Check if all non-empty lines start with '--'
+    local all_commented = true
+    for _, line in ipairs(lines) do
+      -- Skip empty lines and lines with only whitespace
+      if not line:match("^%s*$") then
+        -- Check if line starts with '--' (possibly with leading whitespace)
+        if not line:match("^%s*%-%-") then
+          all_commented = false
+          break
+        end
+      end
+    end
+    
+    -- If all non-empty lines are commented, remove the comment prefix
+    if all_commented then
+      for i, line in ipairs(lines) do
+        -- Only process non-empty lines
+        if not line:match("^%s*$") then
+          -- Remove '--' and optional space after it, preserving indentation
+          lines[i] = line:gsub("^(%s*)%-%-%s?", "%1")
+        end
+      end
+    end
+    
     query = table.concat(lines, "\n")
   else
     -- Fall back to visual selection
