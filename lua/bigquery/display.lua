@@ -57,10 +57,10 @@ local function open_split(buf, config)
   vim.api.nvim_win_set_buf(win, buf)
   
   -- Set window options
-  vim.wo[win].number = false
-  vim.wo[win].relativenumber = false
-  vim.wo[win].wrap = false
-  vim.wo[win].cursorline = true
+  vim.api.nvim_win_set_option(win, 'number', false)
+  vim.api.nvim_win_set_option(win, 'relativenumber', false)
+  vim.api.nvim_win_set_option(win, 'wrap', false)
+  vim.api.nvim_win_set_option(win, 'cursorline', true)
   
   return win
 end
@@ -114,7 +114,7 @@ function M.show_results(lines, config, query, elapsed)
   vim.bo[buf].modifiable = false
   
   -- Open the buffer in a split
-  open_split(buf, config)
+  local win = open_split(buf, config)
   
   -- Add keymaps for the results buffer
   local opts = { buffer = buf, noremap = true, silent = true }
@@ -161,29 +161,89 @@ function M.show_error(error_lines, query)
     string.rep("-", 60),
   }
   
-  -- Add query lines
-  for _, line in ipairs(vim.split(query, "\n")) do
-    table.insert(lines, line)
+  -- Add query lines (limit to first 10 lines to save space for error)
+  local query_lines = vim.split(query, "\n")
+  local query_preview_lines = {}
+  for i = 1, math.min(10, #query_lines) do
+    table.insert(query_preview_lines, query_lines[i])
   end
+  if #query_lines > 10 then
+    table.insert(query_preview_lines, "... (" .. (#query_lines - 10) .. " more lines)")
+  end
+  vim.list_extend(lines, query_preview_lines)
   
   table.insert(lines, "")
   table.insert(lines, "Error:")
   table.insert(lines, string.rep("-", 60))
   
-  -- Add error lines
-  vim.list_extend(lines, error_lines)
+  -- Add error lines with proper formatting
+  for _, error_line in ipairs(error_lines) do
+    -- Wrap long lines to fit in terminal width
+    local max_width = vim.o.columns - 4
+    if #error_line > max_width then
+      -- Split long lines
+      local wrapped = {}
+      local current = error_line
+      while #current > 0 do
+        table.insert(wrapped, current:sub(1, max_width))
+        current = current:sub(max_width + 1)
+      end
+      vim.list_extend(lines, wrapped)
+    else
+      table.insert(lines, error_line)
+    end
+  end
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.bo[buf].modifiable = false
   
+  -- Calculate appropriate split size (min 15, max 40% of window height)
+  local split_size = math.min(
+    math.max(15, #lines + 2),
+    math.floor(vim.o.lines * 0.4)
+  )
+  
   -- Open the buffer in a split
-  open_split(buf, { split_direction = "below", split_size = 15 })
+  local win = open_split(buf, { split_direction = "below", split_size = split_size })
+  
+  -- Set window options for better readability (override defaults for error display)
+  if win and vim.api.nvim_win_is_valid(win) then
+    vim.api.nvim_win_set_option(win, 'wrap', true)
+    vim.api.nvim_win_set_option(win, 'linebreak', true)
+  end
   
   -- Add keymaps for the error buffer
   local opts = { buffer = buf, noremap = true, silent = true }
   vim.keymap.set("n", "q", "<cmd>close<cr>", opts)
   vim.keymap.set("n", "<esc>", "<cmd>close<cr>", opts)
+  -- Add a keymap to show full query in floating window
+  vim.keymap.set("n", "gq", function()
+    local float_opts = {
+      relative = "editor",
+      width = math.min(100, vim.o.columns - 4),
+      height = math.min(30, vim.o.lines - 4),
+      col = (vim.o.columns - 100) / 2,
+      row = (vim.o.lines - 30) / 2,
+      style = "minimal",
+      border = "rounded",
+      title = " Full Query ",
+      title_pos = "center",
+    }
+    
+    local float_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(float_buf, 0, -1, false, vim.split(query, "\n"))
+    vim.bo[float_buf].filetype = "sql"
+    vim.bo[float_buf].modifiable = false
+    
+    local float_win = vim.api.nvim_open_win(float_buf, true, float_opts)
+    vim.keymap.set("n", "q", function()
+      vim.api.nvim_win_close(float_win, true)
+    end, { buffer = float_buf })
+    vim.keymap.set("n", "<esc>", function()
+      vim.api.nvim_win_close(float_win, true)
+    end, { buffer = float_buf })
+  end, vim.tbl_extend("force", opts, { desc = "Show full query" }))
 end
 
 return M

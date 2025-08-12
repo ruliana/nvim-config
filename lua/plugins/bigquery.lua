@@ -35,7 +35,7 @@ return {
           end
         end,
         mode = { "n", "v" }, 
-        desc = "Run BigQuery" 
+        desc = "Run BigQuery (cursor query or selection)" 
       },
       { "<leader>bQ", "<cmd>BQPrompt<cr>", desc = "BigQuery Prompt" },
       { "<leader>bf", "<cmd>BQFormat<cr>", desc = "BigQuery Format" },
