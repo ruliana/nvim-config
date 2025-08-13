@@ -1,0 +1,3 @@
+-- Test BigQuery CREATE TABLE statement
+create or replace table `sdp-stg-cti-data.scratch.pre_auth_stripe_north_star_metric_hit` as
+select 1 as test_col, 'hello' as message;

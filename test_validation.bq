@@ -1,0 +1,11 @@
+-- Valid query to test bytes calculation
+from `bigquery-public-data.samples.wikipedia`
+|> where title like 'Google%'
+|> select title, id
+|> limit 10;
+
+-- Query with syntax error (likee instead of like)
+from `bigquery-public-data.samples.wikipedia`
+|> where title likee 'Google%'
+|> select title, id
+|> limit 10;

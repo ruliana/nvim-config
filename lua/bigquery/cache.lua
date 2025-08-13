@@ -10,7 +10,8 @@ M.config = {
   tables = { ttl = 3600 },       -- 1 hour
   schemas = { ttl = 43200 },     -- 12 hours
   temp_tables = { ttl = 300 },   -- 5 minutes for temp/scratch
-  user_usage = { ttl = 3600 }    -- 1 hour for usage data
+  user_usage = { ttl = 3600 },   -- 1 hour for usage data
+  validation = { ttl = 7200, max_entries = 500 }  -- 2 hours, 500 entries default
 }
 
 -- In-memory cache
@@ -19,7 +20,8 @@ M.cache = {
   datasets = {},  -- Per-project
   tables = {},    -- Per-dataset
   schemas = {},   -- Per-table
-  user_usage = {} -- Per-user usage patterns
+  user_usage = {}, -- Per-user usage patterns
+  validation = {} -- Query validation results
 }
 
 -- Initialize cache directory
@@ -150,7 +152,8 @@ function M.clear_all()
     datasets = {},
     tables = {},
     schemas = {},
-    user_usage = {}
+    user_usage = {},
+    validation = {}
   }
 end
 
@@ -184,9 +187,111 @@ function M.get_stats()
     projects = M.cache.projects.data and 1 or 0,
     datasets = vim.tbl_count(M.cache.datasets),
     tables = vim.tbl_count(M.cache.tables),
-    schemas = vim.tbl_count(M.cache.schemas)
+    schemas = vim.tbl_count(M.cache.schemas),
+    validation = vim.tbl_count(M.cache.validation)
   }
   return stats
+end
+
+-- Normalize query for caching (collapse all whitespace to single space)
+function M.normalize_query(query)
+  if not query then return "" end
+  -- Replace all whitespace sequences with single space and trim
+  return query:gsub("%s+", " "):match("^%s*(.-)%s*$") or ""
+end
+
+-- Generate hash for a normalized query
+function M.hash_query(query)
+  local normalized = M.normalize_query(query)
+  return vim.fn.sha256(normalized)
+end
+
+-- Get validation cache with LRU eviction
+function M.get_validation(query_hash, ttl_override)
+  local cache_entry = M.cache.validation[query_hash]
+  if not cache_entry then
+    return nil
+  end
+  
+  local now = os.time()
+  local ttl = ttl_override or M.config.validation.ttl
+  
+  -- Check if expired
+  if (now - cache_entry.timestamp) > ttl then
+    M.cache.validation[query_hash] = nil
+    return nil
+  end
+  
+  -- Update access info for LRU
+  cache_entry.last_access = now
+  cache_entry.access_count = (cache_entry.access_count or 0) + 1
+  
+  return cache_entry.result
+end
+
+-- Set validation cache with LRU eviction
+function M.set_validation(query_hash, result, max_entries_override)
+  local now = os.time()
+  local max_entries = max_entries_override or M.config.validation.max_entries
+  
+  -- Clean expired entries first
+  M.clean_expired_validation()
+  
+  -- Check if we need to evict (LRU)
+  local count = vim.tbl_count(M.cache.validation)
+  if count >= max_entries and not M.cache.validation[query_hash] then
+    -- Only evict if we're adding a new entry (not updating existing)
+    -- Find least recently used entry
+    local lru_hash = nil
+    local oldest_access = now + 1  -- Start with future time
+    
+    for hash, entry in pairs(M.cache.validation) do
+      if hash ~= query_hash then  -- Don't evict the one we're about to add
+        local last_access = entry.last_access or entry.timestamp
+        if last_access < oldest_access then
+          oldest_access = last_access
+          lru_hash = hash
+        end
+      end
+    end
+    
+    -- Evict the LRU entry
+    if lru_hash then
+      M.cache.validation[lru_hash] = nil
+    end
+  end
+  
+  -- Store the new entry
+  M.cache.validation[query_hash] = {
+    result = result,
+    timestamp = now,
+    last_access = now,
+    access_count = 0
+  }
+end
+
+-- Clean expired validation entries
+function M.clean_expired_validation()
+  local now = os.time()
+  local ttl = M.config.validation.ttl
+  
+  for hash, entry in pairs(M.cache.validation) do
+    if (now - entry.timestamp) > ttl then
+      M.cache.validation[hash] = nil
+    end
+  end
+end
+
+-- Update validation cache config from workspace settings
+function M.update_validation_config(validation_config)
+  if validation_config then
+    if validation_config.ttl then
+      M.config.validation.ttl = validation_config.ttl
+    end
+    if validation_config.max_entries then
+      M.config.validation.max_entries = validation_config.max_entries
+    end
+  end
 end
 
 M.init()

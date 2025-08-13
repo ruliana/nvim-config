@@ -20,7 +20,9 @@ return {
       "BQShowCache",
       "BQCreateConfig",
       "BQDiscoverUsage",
-      "BQDiscoverTables"
+      "BQDiscoverTables",
+      "BQValidate",
+      "BQValidateSelection"
     },
     ft = { "sql", "bq", "bigquery" },
     keys = {
@@ -43,6 +45,19 @@ return {
       { "<leader>bp", "<cmd>BQPinTable<cr>", desc = "Pin current table" },
       { "<leader>bc", "<cmd>BQClearCache<cr>", desc = "Clear BigQuery cache" },
       { "<leader>bd", "<cmd>BQDiscoverUsage<cr>", desc = "Discover BigQuery usage patterns" },
+      { 
+        "<leader>bv", 
+        function()
+          local mode = vim.api.nvim_get_mode().mode
+          if mode == "v" or mode == "V" or mode == "" then
+            vim.cmd("BQValidateSelection")
+          else
+            vim.cmd("BQValidate")
+          end
+        end,
+        mode = { "n", "v" }, 
+        desc = "Validate BigQuery query" 
+      },
     },
     config = function()
       require("bigquery").setup({

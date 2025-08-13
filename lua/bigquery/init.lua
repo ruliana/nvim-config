@@ -77,8 +77,8 @@ function M.setup(opts)
   
   vim.api.nvim_create_user_command("BQShowCache", function()
     local stats = require("bigquery.cache").get_stats()
-    vim.notify(string.format("Cache: %d projects, %d datasets, %d tables, %d schemas",
-      stats.projects, stats.datasets, stats.tables, stats.schemas), vim.log.levels.INFO)
+    vim.notify(string.format("Cache: %d projects, %d datasets, %d tables, %d schemas, %d validations",
+      stats.projects, stats.datasets, stats.tables, stats.schemas, stats.validation), vim.log.levels.INFO)
   end, { desc = "Show BigQuery cache statistics" })
   
   vim.api.nvim_create_user_command("BQCreateConfig", function()
@@ -96,6 +96,45 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("BQDiscoverTables", function()
     require("bigquery.discover").discover_frequent_tables()
   end, { desc = "Discover frequently used tables and add to pinned list" })
+  
+  -- Validation commands
+  vim.api.nvim_create_user_command("BQValidate", function()
+    require("bigquery.validator").validate_current_query()
+  end, { desc = "Validate BigQuery query at cursor" })
+  
+  vim.api.nvim_create_user_command("BQValidateSelection", function(opts)
+    require("bigquery.validator").validate_selection(opts.line1, opts.line2)
+  end, { range = true, desc = "Validate selected BigQuery query" })
+  
+  -- Setup autocmd for automatic validation on cursor hold
+  local group = vim.api.nvim_create_augroup("BigQueryValidation", { clear = true })
+  
+  -- Set updatetime to 2 seconds for SQL/BQ files
+  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
+    group = group,
+    pattern = { "*.sql", "*.bq", "*.bigquery" },
+    callback = function()
+      vim.opt_local.updatetime = 2000  -- 2 seconds
+    end,
+  })
+  
+  vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
+    group = group,
+    pattern = { "*.sql", "*.bq", "*.bigquery" },
+    callback = function()
+      -- Always validate when cursor is held in SQL/BQ files
+      require("bigquery.validator").validate_current_query()
+    end,
+  })
+  
+  -- Close validation window on cursor move
+  vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "BufLeave" }, {
+    group = group,
+    pattern = { "*.sql", "*.bq", "*.bigquery" },
+    callback = function()
+      require("bigquery.validator").close_validation_window()
+    end,
+  })
 end
 
 function M.run_query()

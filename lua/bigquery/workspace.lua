@@ -53,6 +53,13 @@ function M.load()
         local ok, config = pcall(vim.json.decode, table.concat(content))
         if ok then
           M.config = vim.tbl_deep_extend('force', M.default_config, config)
+          
+          -- Update validation cache config if specified
+          if config.validation_cache then
+            local cache = require("bigquery.cache")
+            cache.update_validation_config(config.validation_cache)
+          end
+          
           -- vim.notify("Loaded BigQuery config from: " .. config_file, vim.log.levels.INFO)
           return M.config
         else
@@ -198,7 +205,11 @@ function M.create_sample_config()
       {project = "sdp-stg-cti-data", datasets = {"intermediate", "mart", "scratch"}},
       {project = "shopify-dw", datasets = {"intermediate", "marts", "mart_payments"}}
     },
-    default_search_datasets = {"intermediate", "mart", "scratch", "staging", "raw"}
+    default_search_datasets = {"intermediate", "mart", "scratch", "staging", "raw"},
+    validation_cache = {
+      ttl = 7200,      -- 2 hours in seconds
+      max_entries = 500 -- Maximum cached validation results
+    }
   }
   
   local config_file = vim.fn.getcwd() .. '/.bqrc.json'

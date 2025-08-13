@@ -1,0 +1,2 @@
+-- Test BigQuery DDL statements
+drop table `sdp-stg-cti-data.scratch.test_table`;

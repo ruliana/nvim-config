@@ -1,0 +1,20 @@
+-- Test error display in floating window
+-- Place cursor on each query and wait 2 seconds (or press <leader>bv)
+
+-- 1. Query with syntax error (misspelled 'like')
+from `bigquery-public-data.samples.wikipedia`
+|> where title likee 'Error%'
+|> select title, id
+|> limit 10;
+
+-- 2. Query with unknown column
+from `bigquery-public-data.samples.wikipedia`
+|> where non_existent_column = 'test'
+|> select title, id
+|> limit 10;
+
+-- 3. Valid query (should show bytes)
+from `bigquery-public-data.samples.wikipedia`
+|> where title like 'Google%'
+|> select title, id
+|> limit 10;

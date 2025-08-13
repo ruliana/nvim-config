@@ -1,0 +1,39 @@
+-- BigQuery Validation Caching Demo
+-- The plugin now caches validation results for 2 hours by default
+
+-- Example 1: This query will be validated and cached
+-- Try running validation (<leader>bv) multiple times
+-- The first time will show the result, subsequent times will show "✓" in the title
+from `bigquery-public-data.samples.wikipedia`
+|> where title like 'Cache%'
+|> select title, id, timestamp
+|> limit 50;
+
+-- Example 2: Same query with different formatting
+-- This will use the cached result from Example 1 (same normalized query)
+from    `bigquery-public-data.samples.wikipedia`
+|>   where   title   like   'Cache%'
+|>   select   title,   id,   timestamp
+|>   limit   50;
+
+-- Example 3: Different query - will trigger new validation
+from `bigquery-public-data.samples.wikipedia`
+|> where title like 'Memory%'
+|> select title, id
+|> limit 100;
+
+-- CACHE FEATURES:
+-- 1. Queries are normalized (whitespace collapsed) before hashing
+-- 2. Cache TTL: 2 hours by default (configurable in .bqrc.json)
+-- 3. Max entries: 500 by default (LRU eviction)
+-- 4. Cached results show "✓" in the floating window title
+-- 5. Use :BQClearCache to clear all caches including validation
+-- 6. Use :BQShowCache to see cache statistics
+
+-- CONFIGURATION (.bqrc.json):
+-- {
+--   "validation_cache": {
+--     "ttl": 7200,      // 2 hours in seconds
+--     "max_entries": 500 // Maximum cached results
+--   }
+-- }

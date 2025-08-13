@@ -11,6 +11,10 @@ M.defaults = {
   use_legacy_sql = false,
   show_query_time = true,
   auto_format = true, -- automatically format JSON results
+  validation_cache = {
+    ttl = 7200,      -- 2 hours default
+    max_entries = 500 -- 500 entries default
+  }
 }
 
 function M.setup(opts)

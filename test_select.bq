@@ -1,0 +1,9 @@
+-- Test BigQuery SELECT statement
+select 
+  1 as number,
+  'test' as text,
+  current_timestamp() as timestamp
+union all
+select 2, 'hello', current_timestamp()
+union all  
+select 3, 'world', current_timestamp();
