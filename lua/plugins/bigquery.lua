@@ -31,7 +31,13 @@ return {
         function()
           local mode = vim.api.nvim_get_mode().mode
           if mode == "v" or mode == "V" or mode == "" then
-            vim.cmd("BQRunSelection")
+            -- Get the actual visual selection range
+            local vstart = vim.fn.line('v')
+            local vend = vim.fn.line('.')
+            local start_line = math.min(vstart, vend)
+            local end_line = math.max(vstart, vend)
+            -- Pass the range explicitly to the command
+            vim.cmd(string.format("%d,%dBQRunSelection", start_line, end_line))
           else
             vim.cmd("BQRun")
           end
@@ -50,7 +56,13 @@ return {
         function()
           local mode = vim.api.nvim_get_mode().mode
           if mode == "v" or mode == "V" or mode == "" then
-            vim.cmd("BQValidateSelection")
+            -- Get the actual visual selection range
+            local vstart = vim.fn.line('v')
+            local vend = vim.fn.line('.')
+            local start_line = math.min(vstart, vend)
+            local end_line = math.max(vstart, vend)
+            -- Pass the range explicitly to the command
+            vim.cmd(string.format("%d,%dBQValidateSelection", start_line, end_line))
           else
             vim.cmd("BQValidate")
           end
