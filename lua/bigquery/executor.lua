@@ -169,7 +169,18 @@ function M.execute(query, config)
             -- Check if stdout contains error messages
             local has_error = false
             for _, line in ipairs(output_lines) do
-              if line:match("^Error") or line:match("error:") or line:match("Syntax error") then
+              -- Check for various error patterns that BigQuery might return
+              if line:match("^Error") or 
+                 line:match("error:") or 
+                 line:match("Syntax error") or
+                 line:match("Access Denied") or
+                 line:match("Not found") or
+                 line:match("Permission denied") or
+                 line:match("Invalid") or
+                 line:match("Failed") or
+                 line:match("SHOPIFY_PRIVACY_ANNOTATIONS") or
+                 line:match("does not exist") or
+                 line:match("Exceeded quota") then
                 has_error = true
                 break
               end
@@ -179,6 +190,15 @@ function M.execute(query, config)
               -- Use stdout as error lines since that's where BigQuery sent the error
               actual_error_lines = output_lines
             end
+          end
+          
+          -- If we still have no error lines, provide a generic error message
+          if #actual_error_lines == 0 then
+            actual_error_lines = {
+              "BigQuery command failed with exit code " .. exit_code,
+              "No error details were captured from the command output.",
+              "This might be a connection issue or the bq command might not be properly configured."
+            }
           end
           
           M.handle_error(actual_error_lines, query)
@@ -218,15 +238,19 @@ end
 function M.handle_error(error_lines, query)
   local error_msg = table.concat(error_lines, "\n")
   
-  -- Parse common BigQuery errors
-  if error_msg:match("Not found") then
+  -- Parse common BigQuery errors and provide specific notifications
+  if error_msg:match("Not found") or error_msg:match("does not exist") then
     vim.notify("BigQuery Error: Table or dataset not found", vim.log.levels.ERROR)
   elseif error_msg:match("Syntax error") then
     vim.notify("BigQuery Syntax Error - check the error buffer for details", vim.log.levels.ERROR)
+  elseif error_msg:match("SHOPIFY_PRIVACY_ANNOTATIONS") then
+    vim.notify("BigQuery Privacy Error: Access denied to protected columns", vim.log.levels.ERROR)
   elseif error_msg:match("Permission denied") or error_msg:match("Access Denied") then
-    vim.notify("BigQuery Permission Error: Check your credentials", vim.log.levels.ERROR)
+    vim.notify("BigQuery Permission Error: Check your credentials or access rights", vim.log.levels.ERROR)
   elseif error_msg:match("Exceeded quota") then
     vim.notify("BigQuery Quota Exceeded", vim.log.levels.ERROR)
+  elseif error_msg:match("Invalid") then
+    vim.notify("BigQuery Invalid Query - check the error buffer for details", vim.log.levels.ERROR)
   else
     vim.notify("BigQuery Error - check the error buffer for details", vim.log.levels.ERROR)
   end
