@@ -512,6 +512,288 @@ function M.search_tables(search_term, limit)
   return results
 end
 
+-- Async version of search_tables
+function M.search_tables_async(search_term, limit, callback)
+  limit = limit or 50
+  
+  -- Check if search term looks like a full or partial table reference
+  local explicit_project, explicit_dataset, explicit_table = search_term:match('([^.]+)%.([^.]+)%.([^.]+)')
+  
+  if explicit_project and explicit_dataset then
+    -- User is typing a full reference - try to list tables in that specific dataset
+    -- This can still be done synchronously as it's fast
+    local tables = M.get_tables(explicit_project, explicit_dataset)
+    
+    local results = {}
+    for _, tbl in ipairs(tables) do
+      if not explicit_table or tbl.name:lower():find(explicit_table:lower(), 1, true) then
+        table.insert(results, {
+          project = explicit_project,
+          dataset = explicit_dataset,
+          table = tbl.name,
+          full_ref = tbl.full_ref
+        })
+        if #results >= limit then
+          break
+        end
+      end
+    end
+    
+    -- If searching for a partial table name and no results yet, try exact table
+    if #results == 0 and explicit_table then
+      -- Try to check if the exact table exists
+      local exact_ref = explicit_project .. '.' .. explicit_dataset .. '.' .. explicit_table
+      if M.table_exists(exact_ref) then
+        table.insert(results, {
+          project = explicit_project,
+          dataset = explicit_dataset,
+          table = explicit_table,
+          full_ref = exact_ref
+        })
+      end
+    end
+    
+    callback(results, nil)
+    return nil  -- No job ID for synchronous operations
+  end
+  
+  -- Check for partial reference (dataset.table)
+  local partial_dataset, partial_table = search_term:match('([^.]+)%.([^.]+)')
+  
+  local project = workspace.get_default_project()
+  if not project then
+    callback({}, nil)
+    return nil
+  end
+  
+  -- Use INFORMATION_SCHEMA query asynchronously
+  local query = string.format([[
+    SELECT 
+      table_catalog as project,
+      table_schema as dataset,
+      table_name as table,
+      CONCAT(table_catalog, '.', table_schema, '.', table_name) as full_ref
+    FROM `%s.region-US.INFORMATION_SCHEMA.TABLES`
+    WHERE (LOWER(table_name) LIKE LOWER('%%%s%%')
+      OR LOWER(table_schema) LIKE LOWER('%%%s%%'))
+      AND table_schema NOT IN ('INFORMATION_SCHEMA')
+    ORDER BY table_schema, table_name
+    LIMIT %d
+  ]], project, search_term, search_term, limit)
+  
+  -- Escape the query properly for shell
+  query = query:gsub('"', '\\"')
+  local cmd = string.format("bq --format=json query --use_legacy_sql=false '%s' 2>/dev/null", query)
+  
+  local output_buffer = {}
+  local job_id = vim.fn.jobstart(cmd, {
+    stdout_buffered = true,
+    on_stdout = function(_, data, _)
+      if data then
+        for _, line in ipairs(data) do
+          if line and line ~= "" then
+            table.insert(output_buffer, line)
+          end
+        end
+      end
+    end,
+    on_exit = function(_, exit_code, _)
+      if exit_code == 0 then
+        local output = table.concat(output_buffer, '\n')
+        local ok, parsed = pcall(vim.json.decode, output)
+        if ok and parsed then
+          callback(parsed, nil)
+        else
+          -- Fallback to searching through datasets
+          M._fallback_search_async(search_term, limit, project, callback)
+        end
+      else
+        -- Fallback to searching through datasets
+        M._fallback_search_async(search_term, limit, project, callback)
+      end
+    end
+  })
+  
+  return job_id
+end
+
+-- Helper for fallback search
+function M._fallback_search_async(search_term, limit, project, callback)
+  local results = {}
+  local datasets = workspace.get_frequent_datasets()
+  
+  -- Also add some common datasets
+  table.insert(datasets, project .. ".scratch")
+  table.insert(datasets, project .. ".staging")
+  table.insert(datasets, project .. ".raw")
+  
+  for _, dataset_ref in ipairs(datasets) do
+    local proj, ds = dataset_ref:match('([^.]+)%.([^.]+)')
+    if not proj then
+      proj = project
+      ds = dataset_ref
+    end
+    
+    -- List tables in this dataset
+    local tbls = M.get_tables(proj, ds)
+    for _, tbl in ipairs(tbls) do
+      if tbl.name:lower():find(search_term:lower(), 1, true) then
+        table.insert(results, {
+          project = proj,
+          dataset = ds,
+          table = tbl.name,
+          full_ref = tbl.full_ref
+        })
+        
+        if #results >= limit then
+          break
+        end
+      end
+    end
+    
+    if #results >= limit then
+      break
+    end
+  end
+  
+  callback(results, nil)
+end
+
+-- Async version of global_search_datasets
+function M.global_search_datasets_async(search_term, limit, callback)
+  limit = limit or 50
+  
+  -- Need at least 4 characters for global search
+  if #search_term < 4 then
+    callback({}, nil)
+    return nil
+  end
+  
+  local results = {}
+  local default_project = workspace.get_default_project()
+  
+  -- Get search targets from configuration
+  local search_targets = workspace.get_search_targets()
+  
+  -- Add default project if different from configured targets
+  if default_project then
+    local found = false
+    for _, target in ipairs(search_targets) do
+      if target.project == default_project then
+        found = true
+        break
+      end
+    end
+    
+    if not found then
+      table.insert(search_targets, 1, {
+        project = default_project,
+        datasets = workspace.get_default_search_datasets()
+      })
+    end
+  end
+  
+  local total_targets = 0
+  local completed_targets = 0
+  local job_ids = {}
+  
+  -- Count total search targets
+  for _, target in ipairs(search_targets) do
+    total_targets = total_targets + #target.datasets
+  end
+  
+  if total_targets == 0 then
+    callback({}, nil)
+    return nil
+  end
+  
+  -- Search each project/dataset combination asynchronously
+  for _, target in ipairs(search_targets) do
+    for _, dataset in ipairs(target.datasets) do
+      -- Use async job to get tables
+      local dataset_ref = target.project .. ':' .. dataset
+      local cmd = string.format('bq --format=json ls --max_results=1000 %s 2>/dev/null', dataset_ref)
+      
+      local output_buffer = {}
+      local job_id = vim.fn.jobstart(cmd, {
+        stdout_buffered = true,
+        on_stdout = function(_, data, _)
+          if data then
+            for _, line in ipairs(data) do
+              if line and line ~= "" then
+                table.insert(output_buffer, line)
+              end
+            end
+          end
+        end,
+        on_exit = function(_, exit_code, _)
+          completed_targets = completed_targets + 1
+          
+          if exit_code == 0 then
+            local output = table.concat(output_buffer, '\n')
+            local ok, data = pcall(vim.json.decode, output)
+            if ok and data then
+              for _, tbl in ipairs(data or {}) do
+                local table_id = tbl.id or tbl.tableId
+                if table_id then
+                  -- Extract just the table name
+                  table_id = table_id:match('([^:%.]+)$')
+                  if table_id and table_id:lower():find(search_term:lower(), 1, true) and not workspace.should_ignore(table_id) then
+                    table.insert(results, {
+                      project = target.project,
+                      dataset = dataset,
+                      table_name = table_id,
+                      full_ref = target.project .. '.' .. dataset .. '.' .. table_id
+                    })
+                  end
+                end
+              end
+            end
+          end
+          
+          -- Check if all searches are complete
+          if completed_targets >= total_targets then
+            -- Track the search
+            local tracker = require('bigquery.search_tracker')
+            tracker.track(search_term)
+            
+            -- Track results
+            local table_refs = {}
+            for _, result in ipairs(results) do
+              table.insert(table_refs, result.full_ref)
+            end
+            tracker.track_results(search_term, table_refs)
+            
+            -- Limit results
+            if #results > limit then
+              local limited_results = {}
+              for i = 1, limit do
+                limited_results[i] = results[i]
+              end
+              callback(limited_results, nil)
+            else
+              callback(results, nil)
+            end
+          end
+        end
+      })
+      
+      table.insert(job_ids, job_id)
+      
+      -- Stop creating more jobs if we already have enough
+      if #results >= limit then
+        break
+      end
+    end
+    
+    if #results >= limit then
+      break
+    end
+  end
+  
+  return job_ids  -- Return all job IDs for potential cancellation
+end
+
 -- Extract tables from current buffer
 function M.extract_tables_from_buffer()
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)

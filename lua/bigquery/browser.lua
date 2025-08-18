@@ -280,10 +280,46 @@ local function create_search_state()
   return {
     cache = {},
     in_progress = {},
+    search_jobs = {},  -- Track active background jobs
     spinner_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
     spinner_idx = 1,
     current_picker = nil
   }
+end
+
+-- Cancel all active search jobs
+local function cancel_search_jobs(search_state)
+  for prompt, jobs in pairs(search_state.search_jobs) do
+    if type(jobs) == "table" then
+      -- Multiple job IDs (from global_search_datasets_async)
+      for _, job_id in ipairs(jobs) do
+        if job_id and job_id > 0 then
+          vim.fn.jobstop(job_id)
+        end
+      end
+    elseif jobs and jobs > 0 then
+      -- Single job ID (from search_tables_async)
+      vim.fn.jobstop(jobs)
+    end
+    search_state.search_jobs[prompt] = nil
+  end
+end
+
+-- Cancel search jobs for a specific prompt
+local function cancel_prompt_jobs(search_state, prompt)
+  local jobs = search_state.search_jobs[prompt]
+  if jobs then
+    if type(jobs) == "table" then
+      for _, job_id in ipairs(jobs) do
+        if job_id and job_id > 0 then
+          vim.fn.jobstop(job_id)
+        end
+      end
+    elseif jobs > 0 then
+      vim.fn.jobstop(jobs)
+    end
+    search_state.search_jobs[prompt] = nil
+  end
 end
 
 -- Browse tables with Telescope
@@ -349,6 +385,7 @@ function M.browse_tables()
       for old_prompt, _ in pairs(search_state.in_progress) do
         if old_prompt ~= prompt then
           search_state.in_progress[old_prompt] = false
+          cancel_prompt_jobs(search_state, old_prompt)
         end
       end
       
@@ -452,32 +489,45 @@ function M.browse_tables()
       -- Start async search in background job
       local function start_background_search()
         
+        -- Cancel any existing jobs for this prompt first
+        cancel_prompt_jobs(search_state, prompt)
+        
         -- Show notification that search is starting
         vim.notify("🔍 Searching BigQuery for: " .. prompt, vim.log.levels.INFO)
         
         -- Run search in a truly async way
         if prompt:match('%.') then
-          -- Has dots - use targeted search (this will be synchronous but fast)
-          vim.defer_fn(function()
-            local ok, search_results = pcall(api.search_tables, prompt, CONSTANTS.DEFAULT_SEARCH_LIMIT)
-            if not ok then
-              process_search_results(prompt, nil, "Search failed: " .. tostring(search_results))
-            else
-              process_search_results(prompt, search_results)
+          -- Has dots - use targeted search (async)
+          local job_id = api.search_tables_async(prompt, CONSTANTS.DEFAULT_SEARCH_LIMIT, function(search_results, error_msg)
+            if search_state.in_progress[prompt] then  -- Only process if still relevant
+              if error_msg then
+                process_search_results(prompt, nil, "Search failed: " .. tostring(error_msg))
+              else
+                process_search_results(prompt, search_results)
+              end
             end
-          end, 10)
+          end)
+          
+          if job_id then
+            search_state.search_jobs[prompt] = job_id
+          end
           return
         else
           -- No dots - use global search if long enough
           if #prompt >= CONSTANTS.GLOBAL_SEARCH_MIN_LENGTH then
-            vim.defer_fn(function()
-              local ok, search_results = pcall(api.global_search_datasets, prompt, CONSTANTS.DEFAULT_SEARCH_LIMIT)
-              if not ok then
-                process_search_results(prompt, nil, "Search failed: " .. tostring(search_results))
-              else
-                process_search_results(prompt, search_results)
+            local job_ids = api.global_search_datasets_async(prompt, CONSTANTS.DEFAULT_SEARCH_LIMIT, function(search_results, error_msg)
+              if search_state.in_progress[prompt] then  -- Only process if still relevant
+                if error_msg then
+                  process_search_results(prompt, nil, "Search failed: " .. tostring(error_msg))
+                else
+                  process_search_results(prompt, search_results)
+                end
               end
-            end, 10)
+            end)
+            
+            if job_ids then
+              search_state.search_jobs[prompt] = job_ids
+            end
             return
           else
             search_state.in_progress[prompt] = false
@@ -567,7 +617,12 @@ function M.browse_tables()
     prompt_title = "BigQuery Tables (type project.dataset.table for cross-project)",
     finder = dynamic_finder,
     sorter = conf.generic_sorter({}),
-    attach_mappings = setup_picker_mappings(dynamic_finder)
+    attach_mappings = setup_picker_mappings(dynamic_finder),
+    on_close = function()
+      -- Cancel all search jobs when picker is closed
+      cancel_search_jobs(search_state)
+      search_state.current_picker = nil
+    end
   })
   
   search_state.current_picker:find()

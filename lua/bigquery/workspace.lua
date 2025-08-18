@@ -26,13 +26,30 @@ M.default_config = {
 -- Current workspace config
 M.config = nil
 
+-- Parse .bigqueryrc file to extract project_id
+local function parse_bigqueryrc()
+  local rc_file = vim.fn.expand('~/.bigqueryrc')
+  if vim.fn.filereadable(rc_file) == 1 then
+    local lines = vim.fn.readfile(rc_file)
+    for _, line in ipairs(lines) do
+      local project = line:match('^%-%-project_id=(.+)$')
+      if project then
+        return project
+      end
+    end
+  end
+  return nil
+end
+
 -- Find and load workspace configuration
 function M.load()
+  -- First, try to get project from .bigqueryrc
+  local project_from_rc = parse_bigqueryrc()
+  
   -- Look for .bqrc.json in current directory and parents
   local config_files = {
     '.bqrc.json',
     '.bqrc',
-    '.bigqueryrc',
     '.bigquery.json'
   }
   
@@ -54,6 +71,11 @@ function M.load()
         if ok then
           M.config = vim.tbl_deep_extend('force', M.default_config, config)
           
+          -- If no project in JSON config but we have one from .bigqueryrc, use it
+          if not M.config.default_project and project_from_rc then
+            M.config.default_project = project_from_rc
+          end
+          
           -- Update validation cache config if specified
           if config.validation_cache then
             local cache = require("bigquery.cache")
@@ -71,6 +93,12 @@ function M.load()
   
   -- No config found, use defaults
   M.config = vim.deepcopy(M.default_config)
+  
+  -- If we found a project in .bigqueryrc, use it
+  if project_from_rc then
+    M.config.default_project = project_from_rc
+  end
+  
   return M.config
 end
 
