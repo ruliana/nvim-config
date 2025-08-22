@@ -22,13 +22,16 @@ local function format_bytes(bytes)
    end
 end
 
-local function create_float_window(content, is_error, is_cached)
+local function create_float_window(content, is_error, is_cached, trigger_win)
    -- Close existing window if any
    M.close_validation_window()
    
-   -- Get current window dimensions
-   local win_width = vim.api.nvim_win_get_width(0)
-   local win_height = vim.api.nvim_win_get_height(0)
+   -- Use the trigger window or fall back to current window
+   local target_win = trigger_win or vim.api.nvim_get_current_win()
+   
+   -- Get target window dimensions
+   local win_width = vim.api.nvim_win_get_width(target_win)
+   local win_height = vim.api.nvim_win_get_height(target_win)
    
    -- Calculate window size and position
    local float_width = math.min(50, math.floor(win_width * 0.4))
@@ -54,6 +57,7 @@ local function create_float_window(content, is_error, is_cached)
    
    local win_config = {
       relative = 'win',
+      win = target_win,  -- Specify which window to attach to
       row = row,
       col = col,
       width = float_width,
@@ -85,10 +89,13 @@ function M.close_validation_window()
    validation_buf = nil
 end
 
-function M.validate_query(query)
+function M.validate_query(query, trigger_win)
    if not query or query == "" then
       return
    end
+   
+   -- Capture the trigger window if not provided
+   trigger_win = trigger_win or vim.api.nvim_get_current_win()
    
    -- Get the default project from config
    local bigquery = require("bigquery")
@@ -133,12 +140,12 @@ function M.validate_query(query)
                table.insert(lines, line)
             end
          end
-         create_float_window(lines, true, true)  -- true for is_cached
+         create_float_window(lines, true, true, trigger_win)  -- Pass trigger_win
       else
          local bytes_msg = cached_result.bytes_processed and 
             ("Bytes to process: " .. format_bytes(cached_result.bytes_processed)) or 
             "Query validated successfully"
-         create_float_window({bytes_msg}, false, true)  -- true for is_cached
+         create_float_window({bytes_msg}, false, true, trigger_win)  -- Pass trigger_win
       end
       return
    end
@@ -281,7 +288,7 @@ function M.validate_query(query)
                   end
                end
                
-               create_float_window(lines, true, false)  -- false for not cached
+               create_float_window(lines, true, false, trigger_win)  -- Pass trigger_win
             end
          else
             -- Try to parse JSON output for bytes processed
@@ -303,7 +310,7 @@ function M.validate_query(query)
                end
             end
             
-            create_float_window({bytes_msg}, false, false)  -- false for not cached
+            create_float_window({bytes_msg}, false, false, trigger_win)  -- Pass trigger_win
          end
          
          -- Store result in cache
@@ -326,6 +333,9 @@ function M.validate_query(query)
 end
 
 function M.validate_current_query()
+   -- Capture the trigger window before any operations
+   local trigger_win = vim.api.nvim_get_current_win()
+   
    local input = require("bigquery.input")
    
    -- Try to get query at cursor position first
@@ -339,10 +349,13 @@ function M.validate_current_query()
       end
    end
    
-   M.validate_query(query)
+   M.validate_query(query, trigger_win)
 end
 
 function M.validate_selection(line1, line2)
+   -- Capture the trigger window before any operations
+   local trigger_win = vim.api.nvim_get_current_win()
+   
    local input = require("bigquery.input")
    
    local query
@@ -381,7 +394,7 @@ function M.validate_selection(line1, line2)
       return
    end
    
-   M.validate_query(query)
+   M.validate_query(query, trigger_win)
 end
 
 return M
