@@ -19,7 +19,8 @@
       "Bash(python3:*)",
       "Bash(/dev/null)",
       "Bash(bq ls:*)",
-      "Bash(lua:*)"
+      "Bash(lua:*)",
+      "WebSearch"
     ],
     "deny": []
   }

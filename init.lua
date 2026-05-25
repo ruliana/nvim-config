@@ -52,3 +52,4 @@ require("lazy").setup({
 require("config.keybindings")
 require("config.markdown")
 require("config.python")
+require("config.json")
