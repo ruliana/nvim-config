@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.ronie.nvim-lazy-sync</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/ronie/.config/nvim/scripts/lazy-sync-and-commit.sh</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/ronie/.nix-profile/bin:/nix/var/nix/profiles/default/bin</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/ronie/Library/Logs/nvim-lazy-sync/launchd.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/ronie/Library/Logs/nvim-lazy-sync/launchd.err.log</string>
+</dict>
+</plist>

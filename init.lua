@@ -45,10 +45,14 @@ require("lazy").setup({
     { import = "plugins" },
   },
   install = { colorscheme = { "habamax" } },
-  checker = { enabled = true },
+  checker = {
+    enabled = false,
+    notify = true,
+  },
 })
 
 -- Load configurations
+require("config.lazy_updates").setup()
 require("config.keybindings")
 require("config.markdown")
 require("config.python")
